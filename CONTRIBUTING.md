@@ -4,8 +4,8 @@ Thank you for helping make CHIMERA scientifically reliable and easier to use.
 Contributions include code, tests, documentation, benchmark fixtures, metadata
 schema review, reproducibility reports, and careful bug reports.
 
-By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Report
-security-sensitive issues through [SECURITY.md](SECURITY.md), not a public issue.
+Report security-sensitive issues through [SECURITY.md](SECURITY.md), not a
+public issue.
 
 ## Before starting
 

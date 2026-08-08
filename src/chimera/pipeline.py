@@ -1,4 +1,4 @@
-"""One-command orchestration of Tests 2A--2E publication bundles."""
+"""One-command orchestration of reproducible CHIMERA benchmark bundles."""
 
 from __future__ import annotations
 
@@ -48,8 +48,8 @@ from .splits import (
 )
 from .validation import validate_bundle
 
-BUNDLE_SCHEMA = "urn:chimera:benchmark-bundle:1"
-SPLIT_SCHEMA = "urn:chimera:split-manifest:1"
+BUNDLE_SCHEMA = "urn:chimera:benchmark-bundle:2"
+SPLIT_SCHEMA = "urn:chimera:split-manifest:2"
 ASSIGNMENT_COLUMNS = (
     "genome_id",
     "group_id",
@@ -707,7 +707,7 @@ def _write_split(
     manifest = {
         "schema": SPLIT_SCHEMA,
         "protocol": kind.value,
-        "protocol_id": kind.directory_name.split("_", 1)[0],
+        "protocol_id": kind.value,
         "parameters": _jsonable(parameters),
         "validation": validation,
         "train": fragment_statistics(train),
@@ -785,7 +785,7 @@ def _report_markdown(
             "",
             "## Interpretation limits",
             "",
-            "- Test 2A must not be used as the headline generalization result.",
+            "- Random-fragment performance does not measure unseen-genome generalization.",
             "- Built-in similarity values are Mash-style MinHash estimates, not universal viral taxonomy boundaries.",
             "- A temporal run without an archived historical snapshot is retrospective release-date filtering.",
             "- Taxonomic novelty and sequence novelty are distinct; report both where possible.",

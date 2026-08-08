@@ -1,8 +1,8 @@
 # Output formats
 
 This document describes CHIMERA bundle schema version
-`urn:chimera:benchmark-bundle:1` and split schema
-`urn:chimera:split-manifest:1`. Treat schema URNs and column names—not prose
+`urn:chimera:benchmark-bundle:2` and split schema
+`urn:chimera:split-manifest:2`. Treat schema URNs and column names—not prose
 layout or file ordering—as the machine interface. Validate before consuming:
 
 ```console
@@ -27,7 +27,7 @@ bundle/
 ├── excluded.tsv
 ├── REPORT.md
 ├── checksums.sha256
-├── 2a_random_fragment/
+├── random_fragment/
 │   ├── assignments.tsv
 │   ├── excluded.tsv
 │   ├── split.json
@@ -35,9 +35,9 @@ bundle/
 │   ├── train.truth.tsv.gz
 │   ├── test.fasta.gz
 │   └── test.truth.tsv.gz
-├── 2b_genome_holdout/
+├── genome_holdout/
 │   └── (the same seven protocol files)
-├── 2c_similarity_filtered/
+├── similarity_filtered/
 │   ├── assignments.tsv
 │   ├── excluded.tsv
 │   ├── split.json
@@ -59,9 +59,9 @@ bundle/
 │       ├── distant_detectable.truth.tsv.gz
 │       ├── no_detectable_match.fasta.gz
 │       └── no_detectable_match.truth.tsv.gz
-├── 2d_temporal_holdout/
+├── temporal_holdout/
 │   └── (the same seven protocol files)
-└── 2e_taxonomic_holdout/
+└── taxonomic_holdout/
     └── (the same seven protocol files)
 ```
 
@@ -69,7 +69,7 @@ If `generate` selects fewer protocols, only their stable directories are
 present. Empty exclusion tables and empty similarity strata are still written
 with headers. `external-similarity.tsv` is present only when the resolved
 configuration supplies an external similarity table; it is the verbatim
-evidence snapshot used for Test 2C.
+evidence snapshot used for the similarity-filtered protocol.
 
 Version 1 has a closed filesystem layout. `chimera validate` rejects unknown
 files or directories anywhere in the bundle, including entries added to
@@ -116,7 +116,7 @@ The machine-facing bundle manifest contains:
 
 | Key | Meaning |
 |---|---|
-| `schema` | `urn:chimera:benchmark-bundle:1`. |
+| `schema` | `urn:chimera:benchmark-bundle:2`. |
 | `tool` | CHIMERA name, exact version, `software_content_sha256`, `git_revision`, and nullable `git_dirty` provenance. The content receipt hashes the executable package sources and canonical schemas, so installed wheels remain identifiable when no Git checkout is present. |
 | `data_model` | Alphabet; explicit linear/circular coordinate systems and semantics; opaque-header rule; source grouping; synthetic status. |
 | `randomness` | Master seed, PRNG description, and semantic seed-derivation namespace. |
@@ -227,10 +227,11 @@ format is opaque: downstream code must not infer semantics from its spelling or
 depend on its length. There is no description containing label, source, split,
 date, or taxonomy.
 
-`train` and `test` are the primary partitions. In 2A, every genome contributes
-to both. In 2B–2E, source/content groups are disjoint.
+`train` and `test` are the primary partitions. In the random-fragment protocol,
+every genome contributes to both. In source-level holdout protocols,
+source/content groups are disjoint.
 
-For 2C:
+For the similarity-filtered protocol:
 
 - `candidate_test` is the entire genome-disjoint test proposal before the
   strict gate;
@@ -258,7 +259,7 @@ One row per FASTA record. Print the current header with `chimera schema truth`.
 | `fragment_length` | Exact nucleotide count; equals `source_end - source_start`. |
 | `partition` | Semantic assignment of this observation: `train`, `test`, or `excluded`. |
 | `view` | Serialized view: `train`, `test`, `candidate_test`, or `test_strata/<similarity_bin>`. |
-| `similarity_bin` | 2C similarity bin; empty for other protocols/training. |
+| `similarity_bin` | Candidate similarity bin; empty for other protocols/training. |
 | `max_train_similarity` | Candidate's best train similarity on `[0,1]`; empty when unavailable/not applicable. |
 | `nearest_train_genome_id` | Best matching training `genome_id`; empty when unavailable/not applicable. |
 | `release_date` | Exact source sequence/segment release date, if supplied. |
@@ -270,14 +271,14 @@ end exceeds source length, first reconstruct the forward interval as
 `source[source_start:] + source[:source_end - source_length]`, then apply the
 strand. Coordinates never refer to the orientation of the emitted string.
 
-`partition` is biological split semantics; `view` is file membership. A 2C
-candidate rejected by the strict gate therefore has `partition = excluded` in
+`partition` is biological split semantics; `view` is file membership. A
+similarity candidate rejected by the strict gate therefore has `partition = excluded` in
 both `candidate_test` and its stratum view. Intentional duplication across
 auxiliary views does not change that semantic assignment.
 
 ### `assignments.tsv`
 
-One row per retained or protocol-excluded source genome. Test 2A records
+One row per retained or protocol-excluded source genome. The random-fragment protocol records
 `partition = both`; other protocols use `train`, `test`, or `excluded`.
 
 | Column | Meaning |
@@ -286,13 +287,13 @@ One row per retained or protocol-excluded source genome. Test 2A records
 | `group_id` | Canonical content group (`sha256:<digest>`), or stable group ID. |
 | `label` | `virus` or `host`. |
 | `partition` | Final protocol disposition: `both`, `train`, `test`, or `excluded`. |
-| `candidate_partition` | 2C pre-gate `train`/`test`; empty outside 2C. Excluded candidates retain `test`. |
+| `candidate_partition` | Similarity pre-gate `train`/`test`; empty outside that protocol. Excluded candidates retain `test`. |
 | `reason` | Stable, auditable assignment/exclusion reason. |
 | `release_date` | Source effective release date when present. |
-| `taxon` | 2E value at the selected rank, otherwise empty. |
-| `similarity_bin` | 2C candidate band, otherwise empty. |
-| `nearest_train_genome_id` | 2C best training source, otherwise empty. |
-| `max_train_similarity` | 2C best value on `[0,1]`, otherwise empty. |
+| `taxon` | Taxonomic-holdout value at the selected rank, otherwise empty. |
+| `similarity_bin` | Similarity candidate band, otherwise empty. |
+| `nearest_train_genome_id` | Best training source for a similarity candidate, otherwise empty. |
+| `max_train_similarity` | Best similarity value on `[0,1]`, otherwise empty. |
 | `similarity_coverage` | External aligned fraction if supplied; built-in screen leaves it empty. |
 | `similarity_method` | External method string or built-in method descriptor. |
 | `strict_gate_train_genome_id` | Training source for the hit that triggered strict exclusion; may differ from the numerical best hit. |
@@ -300,7 +301,7 @@ One row per retained or protocol-excluded source genome. Test 2A records
 | `strict_gate_coverage` | Coverage of that hit; empty for the built-in screen. |
 | `strict_gate_method` | Method descriptor for that hit. |
 
-Use both `partition` and `candidate_partition` to distinguish a strict 2C
+Use both `partition` and `candidate_partition` to distinguish a strict similarity
 exclusion from a source never proposed for test.
 
 ### Per-protocol `excluded.tsv`
@@ -328,7 +329,7 @@ header.
 | `strict_gate_method` | Method for the qualifying strict-gate hit. |
 
 `missing_metadata = "exclude"` records temporal/taxonomic missingness here.
-2C records candidates removed by its strict gate. Exclusions are part of the
+The similarity protocol records candidates removed by its strict gate. Exclusions are part of the
 scientific result and must be counted and archived.
 
 ### `split.json`
@@ -337,32 +338,32 @@ The stable split manifest contains:
 
 | Key | Meaning |
 |---|---|
-| `schema` | `urn:chimera:split-manifest:1`. |
+| `schema` | `urn:chimera:split-manifest:2`. |
 | `protocol` | Canonical name: `random`, `genome`, `similarity`, `temporal`, or `taxonomy`. |
-| `protocol_id` | `2a` through `2e`. |
+| `protocol_id` | Canonical protocol identifier: `random`, `genome`, `similarity`, `temporal`, or `taxonomy`. |
 | `parameters` | Resolved protocol parameters, operators, grouping, cutoff/taxa, and method/source. |
-| `validation` | Pass status and overlap/source counts; 2A is marked diagnostic-only. |
+| `validation` | Pass status and overlap/source counts; random fragment is marked diagnostic-only. |
 | `train`, `test` | Fragment statistics described below. |
 | `truth_rows` | Train/test truth row counts. |
 | `excluded_genomes` | Count written to per-split exclusion table. |
-| `candidate_test` | 2C-only statistics for the complete candidate view. |
+| `candidate_test` | Similarity-only statistics for the complete candidate view. |
 
 Fragment-statistic objects include `records`, `bases`, `gc_fraction`,
 `ambiguous_fraction`, `records_by_label`, `records_by_length`,
 `source_genomes`, and `records_by_genome`. Fractions are JSON `null` for an
 empty view.
 
-Protocol parameters are intentionally self-describing. For example, 2C records
+Protocol parameters are intentionally self-describing. For example, similarity records
 the strict identity operator (`>`), strict coverage operator (`>=`), table or
-built-in source, k, sketch size, thresholds, and similarity bands; 2D records its
-inclusive cutoff and temporal semantics; 2E records rank and held-out taxa.
+built-in source, k, sketch size, thresholds, and similarity bands; temporal
+records its inclusive cutoff and semantics; taxonomy records rank and held-out taxa.
 
 ## Validation report counts
 
 `chimera validate BUNDLE --json` returns the structured `ValidationReport`.
 `primary_fasta_records_verified` and `primary_truth_rows_verified` count only
 the train/test partitions summarized in `splits`. The corresponding
-`auxiliary_*` fields count 2C `candidate_test` and all stratum views. Because a
+`auxiliary_*` fields count similarity `candidate_test` and all stratum views. Because a
 candidate intentionally occurs in `candidate_test` and one stratum—and may also
 occur in strict `test`—auxiliary counts are view-row counts, not unique fragment
 or source counts.
@@ -386,15 +387,15 @@ Its columns are:
 sequence_id genome_id label accession_version release_date topology realm kingdom phylum class order family genus species
 ```
 
-Only `sequence_id` is structurally required, but 2D and 2E require their
-applicable values unless `missing_metadata = "exclude"`. See the
+Only `sequence_id` is structurally required, but temporal and taxonomic holdout
+require their applicable values unless `missing_metadata = "exclude"`. See the
 [user guide](USER_GUIDE.md#metadata) for aliases, grouping, and strict join
 behavior.
 
 ## Compatibility policy
 
 Bundle and split schema URNs identify the contract. Consumers should reject an
-unknown major URN and must select fields by header name, not position. The v1
+unknown major URN and must select fields by header name, not position. The v2
 filesystem inventory is exact: extra entries are invalid even when checksum-
 listed. Do not depend on row order as a randomization mechanism, opaque ID
 internals, or prose in `REPORT.md`.

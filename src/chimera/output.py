@@ -1,4 +1,4 @@
-"""Deterministic, atomic writers for CHIMERA publication bundles."""
+"""Deterministic, atomic writers for CHIMERA benchmark bundles."""
 
 from __future__ import annotations
 

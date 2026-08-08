@@ -49,8 +49,8 @@ from .schema_resources import (
 from .similarity import format_similarity_value
 from .splits import SplitAssignment, SplitPartition, SplitPlan, build_split_plan
 
-_BUNDLE_SCHEMA = "urn:chimera:benchmark-bundle:1"
-_SPLIT_SCHEMA = "urn:chimera:split-manifest:1"
+_BUNDLE_SCHEMA = "urn:chimera:benchmark-bundle:2"
+_SPLIT_SCHEMA = "urn:chimera:split-manifest:2"
 _ROOT_FILES = (
     ".chimera-bundle",
     "REPORT.md",
@@ -949,11 +949,16 @@ def _validate_truth_assignments(
     if kind is SplitKind.RANDOM:
         expected_sources = frozenset(references)
         if train.source_genomes != expected_sources or test.source_genomes != expected_sources:
-            _fail(f"{split_dir}: every reference genome must occur in both Test 2A partitions")
+            _fail(
+                f"{split_dir}: every reference genome must occur in both random-fragment partitions"
+            )
         train_strata = {(row["source_genome_id"], row["fragment_length"]) for row in train.rows}
         test_strata = {(row["source_genome_id"], row["fragment_length"]) for row in test.rows}
         if train_strata != test_strata:
-            _fail(f"{split_dir}: every genome/length stratum must occur in both Test 2A partitions")
+            _fail(
+                f"{split_dir}: every genome/length stratum must occur in both "
+                "random-fragment partitions"
+            )
     else:
         expected_train = frozenset(
             genome_id
@@ -1118,7 +1123,7 @@ def _validate_recomputed_assignments(
             }
             for field, value in expected_text.items():
                 if observed[field] != value:
-                    _fail(f"{assignment_path}:{line_number}: invalid Test 2A {field}")
+                    _fail(f"{assignment_path}:{line_number}: invalid random-fragment {field}")
         return None
 
     evidence_mode = parameters.get("similarity_evidence_mode")
@@ -1551,7 +1556,7 @@ def _validate_split(
     if (
         split_manifest.get("schema") != _SPLIT_SCHEMA
         or split_manifest.get("protocol") != kind.value
-        or split_manifest.get("protocol_id") != kind.directory_name.split("_", 1)[0]
+        or split_manifest.get("protocol_id") != kind.value
     ):
         _fail(f"{split_path}: schema/protocol does not match directory {split_dir.name!r}")
     parameters = split_manifest.get("parameters")

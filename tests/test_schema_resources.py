@@ -62,9 +62,9 @@ def _dna(seed: int, *, length: int = 240) -> str:
 
 def _split_manifest() -> dict[str, object]:
     return {
-        "schema": "urn:chimera:split-manifest:1",
+        "schema": "urn:chimera:split-manifest:2",
         "protocol": "genome",
-        "protocol_id": "2b",
+        "protocol_id": "genome",
         "parameters": {"test_fraction": 0.5},
         "validation": {
             "status": "pass",
@@ -88,10 +88,10 @@ def _bundle_manifest() -> dict[str, object]:
     virus_digest = "a" * 64
     host_digest = "b" * 64
     return {
-        "schema": "urn:chimera:benchmark-bundle:1",
+        "schema": "urn:chimera:benchmark-bundle:2",
         "tool": {
             "name": "CHIMERA",
-            "version": "1.0.0",
+            "version": "2.0.0",
             "software_content_sha256": "c" * 64,
             "git_revision": "unknown",
             "git_dirty": None,
@@ -138,15 +138,17 @@ def _bundle_manifest() -> dict[str, object]:
     }
 
 
-def test_all_packaged_schemas_are_valid_immutable_v1_resources() -> None:
+def test_all_packaged_schemas_are_valid_versioned_resources() -> None:
     assert tuple(name.value for name in SchemaName) == JSON_SCHEMA_NAMES
     validate_packaged_schemas()
 
+    schema_versions = {SchemaName.BUNDLE: 2, SchemaName.SPLIT: 2}
     for name in SchemaName:
         document = load_schema(name)
         assert document["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert str(document["$id"]).startswith("urn:chimera:schema:")
-        assert str(document["$id"]).endswith(":1")
+        expected_version = schema_versions.get(name, 1)
+        assert str(document["$id"]).endswith(f":{expected_version}")
 
 
 def test_schema_loads_are_fresh_and_unknown_names_are_actionable() -> None:

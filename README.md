@@ -1,19 +1,38 @@
 # CHIMERA
 
-CHIMERA creates deterministic, leakage-aware virus-versus-host sequence
-classification benchmarks. One command produces the basic random-fragment
-diagnostic and four complementary generalization tests, with fragment-level truth,
-source assignments, exclusions, checksums, and resolved provenance.
+CHIMERA builds reproducible benchmark datasets for DNA classifiers that
+distinguish viral sequence from host or other non-viral sequence. It takes
+labeled reference genomes, samples exact fixed-length fragments, and writes
+train/test partitions with machine-readable truth, source provenance,
+exclusions, configuration, schemas, and checksums.
 
-> **Scope.** CHIMERA samples exact DNA substrings from reference genomes. It
-> does not simulate platform errors, abundance profiles, paired-end libraries,
-> or complete metagenomic communities. The generated records are synthetic
-> classification fragments, not empirical sequencing reads.
+CHIMERA is a **dataset generator and validator**. It does not train a model,
+predict labels, download reference databases, or simulate sequencing-platform
+errors. It is also not a whole-community metagenome simulator: its generated
+records are controlled DNA fragments sampled from the supplied references.
 
-## Quick start
+## Why use CHIMERA?
+
+A random split of fragments can place sequence from the same source genome in
+both training and test data. That setup is useful as a pipeline diagnostic, but
+it can greatly overstate performance on novel biological material. CHIMERA
+therefore provides five complementary partitioning protocols:
+
+| Protocol | `--split` value | What it measures |
+|---|---|---|
+| Random fragment | `random` | A basic diagnostic in which every source genome contributes fragments to both partitions. It does **not** measure unseen-genome generalization. |
+| Genome holdout | `genome` | Performance on source genomes that are absent from training. Whole content-equivalent genome groups are assigned before fragments are generated. |
+| Similarity filtered | `similarity` | Performance as test genomes become less similar to training genomes. Candidate genomes are stratified by similarity and can be removed by a strict identity/coverage gate. |
+| Temporal holdout | `temporal` | Retrospective performance on accessions first released after an inclusive cutoff date. |
+| Taxonomic holdout | `taxonomy` | Generalization to selected viral taxa whose supplied rank values are absent from training. |
+
+`chimera suite` generates all five protocols in one bundle. Use
+`chimera generate --split ...` when only selected protocols are needed.
+
+## Installation
 
 CHIMERA supports Python 3.11–3.14. Install the current version from this
-repository into an isolated environment:
+repository in an isolated environment:
 
 ```console
 git clone https://github.com/Alexander-Mitrofanov/CHIMERA.git
@@ -23,21 +42,81 @@ python -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install .
 chimera --version
-chimera --help
 ```
 
-Run the bundled tiny fixture without network access:
+## Try the bundled example
+
+The repository includes a small, entirely synthetic dataset that requires no
+network access:
 
 ```console
 chimera suite --config examples/tiny/chimera.toml
+chimera validate examples/tiny/tiny-benchmark
 ```
 
-That exact command creates all Tests 2A–2E in
-`examples/tiny/tiny-benchmark/`. The configuration contains two synthetic
-viruses in two fictional families and two synthetic hosts, with release dates
-on both sides of the cutoff. See [`examples/tiny/README.md`](examples/tiny/README.md).
+The example contains two fictional viral genomes and two fictional host
+genomes. It creates a complete bundle under
+`examples/tiny/tiny-benchmark/`. See
+[`examples/tiny/README.md`](examples/tiny/README.md) for details.
 
-For your own references, start with:
+## Use CHIMERA with your own references
+
+### 1. Prepare viral and host FASTA
+
+Supply viral references with `--virus` and host/non-viral references with
+`--host`. Each option accepts a FASTA file or a directory and may be repeated.
+CHIMERA discovers `.fa`, `.fasta`, and `.fna` files, including `.gz` variants.
+Sequences must use IUPAC DNA symbols.
+
+Inputs are treated as untrusted data. CHIMERA validates FASTA structure,
+normalizes sequence case, rejects conflicting identifiers and labels, and
+checks for exact cross-class content conflicts before generating fragments.
+
+### 2. Provide sequence metadata
+
+A UTF-8 tab-separated metadata file is strongly recommended and is required
+for multi-record FASTA inputs, temporal holdout, and taxonomic holdout. The
+`sequence_id` column must match the FASTA record identifier. Use `genome_id` to
+group contigs or genome segments that must never be split independently.
+
+Typical columns are:
+
+```text
+sequence_id	genome_id	accession_version	release_date	family	genus	topology
+virus_contig_1	virus_genome_1	V_000001.1	2019-04-01	Exampleviridae	Examplevirus	linear
+host_contig_1	host_genome_1	H_000001.1	2018-07-10			linear
+```
+
+- `release_date` is the accession's first public release date in ISO
+  `YYYY-MM-DD` form; it is not a collection date.
+- Taxonomy values are supplied by the user. CHIMERA compares them
+  case-insensitively but does not resolve names, lineages, synonyms, or taxon
+  identifiers.
+- `topology` is `linear` or `circular` and controls eligible fragment
+  coordinates and content hashing.
+- `label` may be included, but it must agree with the `--virus` or `--host`
+  input channel.
+
+Print the complete metadata header contract with:
+
+```console
+chimera schema metadata
+```
+
+### 3. Inspect references before generation
+
+```console
+chimera inspect \
+  --virus references/viruses.fna \
+  --host references/hosts.fna \
+  --metadata references/metadata.tsv
+```
+
+Add `--json` for a machine-readable inventory. Inspection reports normalized
+genome IDs, labels, lengths, contig counts, effective release dates, and
+canonical content hashes without generating fragments.
+
+### 4. Generate the complete benchmark suite
 
 ```console
 chimera suite \
@@ -51,66 +130,88 @@ chimera suite \
   --seed 42
 ```
 
-`suite` always selects all five protocols; use `generate --split ...` for a
-subset. Explicit command-line flags override TOML values. Use `--dry-run` to
-load, normalize, integrity-check, and resolve every split without writing a
-bundle.
+Important behavior:
 
-## Evaluation suite
+- `--fragment-length` is repeatable. CHIMERA balances each genome's requested
+  fragment count across the configured lengths.
+- Coordinates are sampled uniformly with replacement from eligible positions;
+  duplicate sequences or coordinates are therefore possible by design.
+- `--strand both` samples forward and reverse-complement orientations.
+- `--dry-run` validates inputs and resolves every split without writing a
+  bundle.
+- CHIMERA refuses to replace an existing output directory unless `--force` is
+  supplied, and even then it only replaces a recognized, valid CHIMERA bundle.
 
-| Test | Stable directory | Question and assignment unit |
-|---|---|---|
-| **2A — Random fragment** | `2a_random_fragment/` | Basic diagnostic. Fragments from every genome are shuffled within genome into train and test, so genome overlap is deliberate. |
-| **2B — Genome holdout** | `2b_genome_holdout/` | Can a model recognize unseen genomes? Whole topology-aware, reverse-complement-invariant digest-v2 groups are assigned before fragment generation. |
-| **2C — Similarity filtered** | `2c_similarity_filtered/` | Does performance degrade as references become less similar to training? A genome-disjoint candidate test is scored against training, stratified, and subjected to a strict gate. |
-| **2D — Temporal holdout** | `2d_temporal_holdout/` | How does a model perform on accessions first released after a cutoff? Training uses `release_date <= cutoff`; test uses later dates. |
-| **2E — Taxonomic holdout** | `2e_taxonomic_holdout/` | Can a model generalize to viral taxa absent from training? Selected viral rank values are held out in full. |
+### 5. Validate the completed bundle
 
-Test 2A is useful for continuity with conventional random evaluation, but it is
-not the decisive generalization result: homologous biological entities can
-leak across random record splits. Report 2B–2E separately, including exclusions
-and per-similarity-stratum results. See the [methodology](docs/METHODOLOGY.md).
+```console
+chimera validate benchmark-v1
+chimera validate benchmark-v1 --json
+```
 
-### Strict and candidate similarity sets
+Validation independently checks the bundle layout, schemas, checksums, source
+inventory, reconstructed fragment sequences and coordinates, assignment
+completeness, counts, exclusions, and protocol-specific leakage invariants.
+Exit status `0` means success, `2` means an input/configuration error, and `3`
+means bundle integrity validation failed.
 
-Test 2C deliberately writes both views:
+## Generate only selected protocols
 
-- `candidate_test.*` contains every genome in the original genome-disjoint test
-  proposal, including candidates rejected by the strict similarity gate.
-- `test.*` is the strict primary set. A candidate is excluded when **any**
-  reported external training hit is **greater than** `max_train_similarity`
-  with coverage at least `min_similarity_coverage`; identity equality is
-  retained. Built-in MinHash has no alignment coverage, so its identity gate
-  applies directly.
-- `test_strata/*` partitions the complete candidate set into `high_similarity`,
-  `moderate_similarity`, `low_similarity`, `distant_detectable`, and
-  `no_detectable_match`. These strata therefore remain
-  useful for a performance-versus-novelty curve even when a record is absent
-  from strict `test.*`.
+Use `generate` and repeat or comma-separate `--split` values:
 
-The dependency-free screen is a canonical k-mer bottom-k MinHash calculation
-reported as a Mash-style identity estimate. It is not alignment-derived ANI,
-and its output must not be interpreted as a universal viral taxonomic boundary.
-For publication analyses, supply a versioned all-candidate-versus-train table
-from an appropriate validated alignment workflow with `--similarity-table`.
+```console
+chimera generate \
+  --virus references/viruses.fna \
+  --host references/hosts.fna \
+  --metadata references/metadata.tsv \
+  --outdir genome-and-similarity \
+  --split genome,similarity \
+  --fragment-length 500 \
+  --fragments-per-genome 100 \
+  --seed 42
+```
 
-### Temporal and taxonomy qualifications
+Accepted values are `random`, `genome`, `similarity`, `temporal`, `taxonomy`,
+and `all`.
 
-`release_date` means the accession's first public release date, not its sample
-collection date. A normal CHIMERA 2D run uses current reference content and
-taxonomy, so it is a **release-date-filtered retrospective** evaluation. Call it
-prospective only if the entire reference and taxonomy inputs are a documented,
-immutable historical snapshot available at the cutoff.
+## Configuration files
 
-Taxonomic holdout compares the supplied rank strings case-insensitively. It
-does not resolve synonyms, lineages, merged taxon identifiers, or spelling
-variants. Normalize taxonomy upstream and retain the versioned source table.
-Taxonomic novelty and sequence novelty are different claims; report 2C and 2E
-independently.
+Every generation option can be stored in TOML. Paths are resolved relative to
+the configuration file:
 
-## Auditable outputs
+```toml
+[benchmark]
+schema_version = 1
+virus_paths = ["references/viruses.fna"]
+host_paths = ["references/hosts.fna"]
+metadata_path = "references/metadata.tsv"
+output_dir = "benchmark-v1"
+splits = ["random", "genome", "similarity", "temporal", "taxonomy"]
 
-Each bundle includes:
+seed = 42
+test_fraction = 0.20
+fragment_lengths = [150, 500]
+fragments_per_genome = 200
+strand_mode = "both"
+
+temporal_cutoff = "2021-12-31"
+taxonomy_rank = "family"
+holdout_taxa = ["Exampleviridae"]
+```
+
+Run it with:
+
+```console
+chimera suite --config benchmark.toml
+```
+
+Explicit command-line flags override TOML values. The
+[user guide](docs/USER_GUIDE.md) documents every option, constraint, and
+default.
+
+## Bundle contents
+
+A complete suite has the following top-level structure:
 
 ```text
 benchmark-v1/
@@ -121,92 +222,82 @@ benchmark-v1/
 ├── references.tsv
 ├── sequences.tsv
 ├── source-sequences.fasta.gz
-├── schemas/
 ├── excluded.tsv
 ├── REPORT.md
 ├── checksums.sha256
-├── 2a_random_fragment/
-├── 2b_genome_holdout/
-├── 2c_similarity_filtered/
-├── 2d_temporal_holdout/
-└── 2e_taxonomic_holdout/
+├── schemas/
+├── random_fragment/
+├── genome_holdout/
+├── similarity_filtered/
+├── temporal_holdout/
+└── taxonomic_holdout/
 ```
 
-Every protocol has compressed train/test FASTA and truth tables,
-`assignments.tsv`, `excluded.tsv`, and `split.json`. FASTA identifiers are
-opaque and contain no class or source information. `sequences.tsv` and
-`source-sequences.fasta.gz` form a one-to-one, per-source-sequence inventory for
-truth reconstruction. Linear truth coordinates are conventional 0-based,
-half-open forward-source intervals. Circular intervals use an unwrapped
-0-based, half-open representation whose `source_end` may exceed source length
-when the fragment crosses the declared origin; reverse-strand coordinates still
-refer to the forward source. The complete tree and schemas are in
-[`docs/OUTPUT_FORMATS.md`](docs/OUTPUT_FORMATS.md).
+Each protocol directory contains compressed train/test FASTA, matching truth
+tables, source assignments, exclusions, statistics, and a split manifest. FASTA
+identifiers are opaque: labels and source identities are available only through
+the truth tables, preventing accidental label leakage through record names.
 
-Generation is staged beside the destination and committed atomically. Existing
-output is never replaced unless `--force` is given, and even then CHIMERA only
-replaces a directory carrying its bundle marker. Semantic files use stable
-ordering, canonical JSON/TSV, gzip timestamp zero, and BLAKE2-derived semantic
-sub-seeds. `execution.json` contains run-time facts and is intentionally omitted
-from `checksums.sha256`; with identical resolved inputs, configuration, CHIMERA
-version, and compatible Python behavior, checksummed artifacts are repeatable.
-Input receipts and resolved configuration use `sha256:<digest>` content IDs,
-not absolute local paths.
+The similarity-filtered protocol also writes the complete pre-gate candidate
+view and similarity strata. Its built-in canonical k-mer MinHash calculation
+is an offline screening estimate, not alignment-derived ANI. For analyses that
+require alignment identity and coverage, provide a complete, versioned
+candidate-versus-training table with `--similarity-table`.
 
-## Inspect, validate, and discover schemas
+See [output formats](docs/OUTPUT_FORMATS.md) for the exact directory contract
+and column definitions.
 
-```console
-chimera inspect --virus viruses.fna --host hosts.fna --metadata metadata.tsv
-chimera inspect --virus viruses.fna --host hosts.fna --metadata metadata.tsv --json
-chimera validate benchmark-v1
-chimera validate benchmark-v1 --json
-chimera schema metadata
-chimera schema truth
-chimera schema references
-chimera schema sequence-row
-```
+## Scientific interpretation
 
-The JSON validation report separates primary train/test records from auxiliary
-2C candidate/stratum views, which intentionally repeat records across views.
+- Treat random-fragment results as a diagnostic, not evidence of
+  unseen-genome recognition.
+- Genome holdout prevents shared source genomes and equivalent whole-genome
+  content across partitions, but it does not guarantee low homology.
+- Similarity values and thresholds are study choices, not universal viral
+  species boundaries.
+- A temporal run over present-day references is retrospective. A prospective
+  claim requires an immutable historical sequence and taxonomy snapshot.
+- Taxonomic holdout depends on the supplied normalized rank strings and is not
+  a substitute for sequence-similarity analysis.
+- CHIMERA validates mechanics and declared invariants; it cannot certify the
+  biological correctness of user-provided labels, dates, taxonomy, or external
+  similarity evidence.
 
-Exit status `0` means success, `2` means a configuration/input/user error, and
-`3` means bundle-integrity validation failed. Diagnostics go to standard error;
-machine-facing generation results go to standard output as JSON.
+The detailed algorithms and assumptions are documented in
+[Methodology](docs/METHODOLOGY.md).
 
-## Documentation
+## Reproducibility and safety
 
-- [User guide](docs/USER_GUIDE.md): installation, FASTA/metadata preparation,
-  flags, TOML, external similarities, and troubleshooting.
-- [Methodology](docs/METHODOLOGY.md): algorithms, assumptions, scientific
-  interpretation, and references.
-- [Output formats](docs/OUTPUT_FORMATS.md): exact bundle tree and columns.
-- [Dataset datasheet](DATASHEET.md): intended uses, risks, and maintenance.
+CHIMERA derives random decisions from a master seed and stable semantic
+identities rather than input order. It writes canonical JSON/TSV, deterministic
+gzip streams, content-addressed input receipts, the fully resolved
+configuration, software provenance, and SHA-256 checksums. With identical input
+bytes, configuration, CHIMERA version, and compatible Python behavior,
+checksummed outputs are repeatable.
+
+Generation occurs in a staging directory and is committed atomically. Absolute
+local input paths are not stored in checked provenance, and broad or
+unrecognized output directories are never deleted.
+
+## Documentation and support
+
+- [User guide](docs/USER_GUIDE.md): complete CLI/configuration reference and
+  troubleshooting.
+- [Methodology](docs/METHODOLOGY.md): algorithms, leakage controls,
+  assumptions, and scientific limitations.
+- [Output formats](docs/OUTPUT_FORMATS.md): bundle layout, table columns, and
+  schemas.
+- [Dataset datasheet](DATASHEET.md): template for documenting a generated
+  benchmark dataset.
 - [Contributing](CONTRIBUTING.md), [security policy](SECURITY.md), and
   [changelog](CHANGELOG.md).
 
-## Migration from MetagenomeGenerator
+The maintained executable is `chimera`. The legacy
+`metagenome-generator` executable delegates to the same CLI with a deprecation
+warning.
 
-The maintained executable is `chimera`. The compatibility executable
-`metagenome-generator` invokes the same CLI but emits a deprecation warning.
-Migrate scripts now:
-
-```diff
-- metagenome-generator suite --config benchmark.toml
-+ chimera suite --config benchmark.toml
-```
-
-Legacy ad-hoc output layouts and option names are not silently inferred. Create
-a schema-versioned TOML file, inspect normalized inputs, run `--dry-run`, and
-consume the manifest/truth tables rather than parsing FASTA headers. Detailed
-mapping guidance is in the [user guide](docs/USER_GUIDE.md#migrating-from-the-legacy-executable).
-
-## Citation, license, and support
-
-CHIMERA 1.0.0 does not claim a project DOI. Cite the exact software version and
-repository URL using [`CITATION.cff`](CITATION.cff), and cite each deposited
-benchmark dataset with its own persistent identifier. Do not reuse a methods
-paper DOI as a software or dataset DOI.
-
-CHIMERA is released under the [MIT License](LICENSE). Report vulnerabilities
-through the private process in [SECURITY.md](SECURITY.md); use the repository
-issue tracker for reproducible non-security defects.
+CHIMERA is released under the [MIT License](LICENSE). Cite the exact software
+version and repository URL using [`CITATION.cff`](CITATION.cff), and cite each
+deposited benchmark dataset with its own persistent identifier. Report security
+issues privately through [SECURITY.md](SECURITY.md); use the GitHub issue
+tracker for reproducible non-security defects.

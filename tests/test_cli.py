@@ -29,7 +29,7 @@ def test_root_help_exposes_recommended_one_click_command(capsys):
     assert raised.value.code == 0
     output = capsys.readouterr().out
     assert "suite" in output
-    assert "Tests 2A-2E" in output
+    assert "all five benchmark protocols" in output
     assert "validate" in output
 
 
@@ -77,7 +77,7 @@ test_fraction = 0.1
             "--test-fraction",
             "0.3",
             "--split",
-            "2b,2d",
+            "genome,temporal",
         ]
     )
 
@@ -97,13 +97,13 @@ def test_suite_rejects_a_selected_protocol_subset_from_toml(tmp_path):
     )
     args = build_parser().parse_args(["suite", "--config", str(config_path)])
 
-    with pytest.raises(ConfigurationError, match="suite always generates Tests 2A-2E"):
+    with pytest.raises(ConfigurationError, match="suite always generates all five protocols"):
         _config_from_namespace(args)
 
 
 def test_suite_parser_rejects_generate_only_split_flag(capsys):
     with pytest.raises(SystemExit) as raised:
-        build_parser().parse_args(["suite", "--split", "2b"])
+        build_parser().parse_args(["suite", "--split", "genome"])
     assert raised.value.code == 2
     assert "unrecognized arguments" in capsys.readouterr().err
 
@@ -259,7 +259,7 @@ def test_generation_progress_branches_are_stable(tmp_path, monkeypatch, caplog, 
         argv.append("--dry-run")
     with caplog.at_level(logging.INFO, logger="chimera"):
         assert main(argv) == 0
-    assert ("Preflight passed" if dry_run else "Publication bundle ready") in caplog.text
+    assert ("Preflight passed" if dry_run else "Benchmark bundle ready") in caplog.text
 
 
 def test_main_maps_oserror_to_exit_two(monkeypatch, caplog):

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:chimera:schema:benchmark-bundle:1",
-  "title": "CHIMERA benchmark bundle manifest v1",
+  "$id": "urn:chimera:schema:benchmark-bundle:2",
+  "title": "CHIMERA benchmark bundle manifest v2",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "tool", "data_model", "randomness", "references", "splits"],
   "properties": {
-    "schema": {"const": "urn:chimera:benchmark-bundle:1"},
+    "schema": {"const": "urn:chimera:benchmark-bundle:2"},
     "tool": {
       "type": "object",
       "additionalProperties": false,
@@ -123,7 +123,7 @@
       "minProperties": 1,
       "propertyNames": {"enum": ["random", "genome", "similarity", "temporal", "taxonomy"]},
       "additionalProperties": {
-        "$ref": "urn:chimera:schema:split-manifest:1"
+        "$ref": "urn:chimera:schema:split-manifest:2"
       }
     }
   }

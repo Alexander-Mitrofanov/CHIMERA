@@ -1,6 +1,6 @@
 # CHIMERA user guide
 
-This guide covers the command-line interface for CHIMERA 1.0.0. Run
+This guide covers the command-line interface for CHIMERA 2.0.0. Run
 `chimera COMMAND --help` for the installed version's authoritative flag list.
 
 ## Installation
@@ -31,7 +31,7 @@ container recipe. The environment file is not a fully resolved lockfile;
 archive an explicit environment lock/export or immutable container digest when
 exact dependency reproduction is required.
 
-## One command for Tests 2A–2E
+## Generate the complete protocol suite
 
 The recommended interface is below. This path exists in a source checkout or
 unpacked source distribution, not in an installed wheel:
@@ -60,8 +60,8 @@ chimera generate \
 ```
 
 Accepted names include `random`, `genome`, `similarity`, `temporal`,
-`taxonomy`, and `all`; `2a` through `2e` and descriptive aliases are also
-accepted.
+`taxonomy`, and `all`. Descriptive aliases such as `random-fragment`,
+`genome-level`, `similarity-filtered`, and `taxonomic-holdout` are also accepted.
 
 ## Preparing reference FASTA
 
@@ -122,9 +122,9 @@ chimera schema metadata
 | `genome_id` | Groups multiple contigs/segments as one indivisible source genome. Defaults to `sequence_id`. |
 | `label` | Optional `virus` or `host`; if present it must agree with the input option used. |
 | `accession_version` | Recommended stable accession including version, for example `NC_012345.2`. |
-| `release_date` | ISO `YYYY-MM-DD` first public release date. Required by 2D unless missing records are explicitly excluded. |
+| `release_date` | ISO `YYYY-MM-DD` first public release date. Required by temporal holdout unless missing records are explicitly excluded. |
 | `topology` | `linear` (default) or `circular`, declared independently for every FASTA record. |
-| `realm` … `species` | Canonical rank values used for provenance; the configured holdout rank is required for viral 2E records. |
+| `realm` … `species` | Canonical rank values used for provenance; the configured holdout rank is required for viral taxonomic-holdout records. |
 
 The full recommended header is:
 
@@ -205,7 +205,7 @@ normalized to underscores, but the underscore form above is the stable style.
 | `seed` | `--seed` | `42` | Integer master seed. |
 | `test_fraction` | `--test-fraction` | `0.20` | Strictly between 0 and 1. |
 | `fragment_lengths` | `--fragment-length` | `[500]` | Unique positive exact lengths; repeat flag. |
-| `fragments_per_genome` | `--fragments-per-genome` | `100` | At least twice the number of requested lengths, so every genome/length stratum can enter both 2A partitions. |
+| `fragments_per_genome` | `--fragments-per-genome` | `100` | At least twice the number of requested lengths, so every genome/length stratum can enter both random-fragment partitions. |
 | `strand_mode` | `--strand` | `both` | `both` or `forward`. |
 | `max_ambiguous_fraction` | `--max-ambiguous-fraction` | `0.05` | Allowed non-ACGT fraction in each emitted fragment. |
 | `duplicate_policy` | `--duplicate-policy` | `error` | `error` or audited `drop`. |
@@ -249,7 +249,7 @@ dataset. This is substring sampling, not an empirical read model.
 
 ## Understanding each protocol
 
-### Test 2A — random fragment diagnostic
+### Random-fragment diagnostic
 
 CHIMERA first generates fragments for every source genome, then performs a
 deterministic shuffled split independently within each genome. Each genome has
@@ -257,10 +257,11 @@ non-empty train and test contributions, fragment IDs never overlap, and source
 genome overlap is expected. The combined output order is deterministically
 shuffled across classes and sources.
 
-Use 2A to detect basic pipeline failures and compare with older random-split
-work. Do not use it as the headline result for unseen-genome discovery.
+Use this protocol to detect basic pipeline failures and compare with older
+random-split work. Do not use it as the headline result for unseen-genome
+discovery.
 
-### Test 2B — genome holdout
+### Genome holdout
 
 Whole genomes are assigned before fragments are generated. Assignment is
 label-stratified toward `test_fraction`. Canonical whole-genome SHA-256 groups
@@ -268,7 +269,7 @@ are invariant to contig input order and reverse-complement representation, so
 equivalent content cannot cross partitions. This tests unseen source genomes,
 not necessarily unseen homologous families.
 
-### Test 2C — similarity-filtered holdout
+### Similarity-filtered holdout
 
 CHIMERA makes a label-stratified, genome/content-disjoint candidate split and
 compares every candidate test genome with training. It writes two primary test
@@ -335,7 +336,7 @@ training ID. Similarity ties are broken by lexical reference ID.
 
 Because candidate assignment depends on the configured seed and inputs, first
 generate a preliminary built-in-similarity bundle and read
-`2c_similarity_filtered/assignments.tsv` for rows whose
+`similarity_filtered/assignments.tsv` for rows whose
 `candidate_partition` is `train` or `test`. Compute the external all-pairs table
 for those IDs, then generate a **new** final output directory with the same
 references, seed, and split parameters plus `similarity_table`. The proposal is
@@ -344,7 +345,7 @@ plan counts but does not write the assignment IDs. Archive both the external
 table and its tool/version, database snapshot, command, identity definition,
 and coverage definition.
 
-### Test 2D — temporal holdout
+### Temporal holdout
 
 With an explicit cutoff, training contains genomes with effective
 `release_date <= cutoff`; test contains genomes with a later date. The cutoff
@@ -364,7 +365,7 @@ cutoff. A prospective claim requires an archived historical database and
 taxonomy snapshot, pinned accession versions, and documented preprocessing.
 CHIMERA's CLI does not manufacture or certify such a snapshot.
 
-### Test 2E — taxonomic holdout
+### Taxonomic holdout
 
 All viral genomes with selected values at `taxonomy_rank` are assigned to test;
 other represented viral taxa train the classifier. Hosts receive an independent
@@ -379,7 +380,7 @@ synonyms, or renamed taxa. Normalize against a versioned taxonomy upstream.
 The data must contain at least two represented viral taxa at the chosen rank,
 and the holdout cannot consume all of them. Missing rank values fail or are
 explicitly excluded. A held-out family can still be highly similar to training,
-so do not treat 2E as a substitute for 2C.
+so do not treat taxonomic holdout as a substitute for similarity analysis.
 
 ## Safe, deterministic output
 
@@ -443,7 +444,7 @@ use `sha256:<digest>` content IDs rather than disclosing absolute local paths;
 archive a separate controlled mapping when original filenames matter.
 
 `chimera validate --json` reports primary FASTA/truth counts for the train/test
-partitions separately from auxiliary counts for the overlapping 2C
+partitions separately from auxiliary counts for the overlapping similarity
 `candidate_test` and stratum views. The aggregate
 `fasta_records_verified`/`truth_rows_verified` values are sums of primary and
 auxiliary counts, so they are not counts of unique biological observations.

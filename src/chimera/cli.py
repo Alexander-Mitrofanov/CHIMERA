@@ -92,7 +92,7 @@ def _add_generation_arguments(
         type=_path,
         metavar="DIR",
         default=argparse.SUPPRESS,
-        help="New publication-bundle directory (default: benchmark-output).",
+        help="New benchmark-bundle directory (default: benchmark-output).",
     )
     output_group.add_argument(
         "--seed",
@@ -270,7 +270,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(
         prog="chimera",
         description=(
-            "Generate leakage-aware virus-versus-host evaluation suites with auditable truth."
+            "Generate leakage-aware virus-versus-host benchmark datasets with auditable truth."
         ),
     )
     parser.add_argument("--version", action="version", version=f"CHIMERA {__version__}")
@@ -285,7 +285,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     suite = subparsers.add_parser(
         "suite",
-        help="Generate Tests 2A-2E in one reproducible bundle (recommended).",
+        help="Generate all five benchmark protocols in one reproducible bundle (recommended).",
         description="Generate the full leakage-aware benchmark suite in one command.",
     )
     _add_generation_arguments(suite, allow_split_selection=False)
@@ -298,7 +298,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_generation_arguments(generate, allow_split_selection=True)
 
     validate = subparsers.add_parser(
-        "validate", help="Independently validate a generated publication bundle."
+        "validate", help="Independently validate a generated benchmark bundle."
     )
     validate.add_argument("bundle", type=_path, metavar="DIR")
     validate.add_argument(
@@ -387,7 +387,7 @@ def _config_from_namespace(args: argparse.Namespace) -> BenchmarkConfig:
 
         if parse_splits(requested_splits) != tuple(SplitKind):
             raise ConfigurationError(
-                "chimera suite always generates Tests 2A-2E; use 'chimera generate' "
+                "chimera suite always generates all five protocols; use 'chimera generate' "
                 "for a selected subset"
             )
         values["splits"] = "all"
@@ -403,7 +403,7 @@ def _run_generate(args: argparse.Namespace) -> int:
         if args.dry_run:
             LOGGER.info("Preflight passed: %s", result.summary)
         else:
-            LOGGER.info("Publication bundle ready: %s", result.output_dir)
+            LOGGER.info("Benchmark bundle ready: %s", result.output_dir)
     print(json.dumps(result.as_dict(), sort_keys=True))
     return 0
 

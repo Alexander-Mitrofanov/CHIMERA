@@ -35,10 +35,10 @@ def test_defaults_select_all_protocols_and_resolve_relative_paths(tmp_path):
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        ("2a", SplitKind.RANDOM),
+        ("random-fragment", SplitKind.RANDOM),
         ("genome-level", SplitKind.GENOME),
         ("similarity-filtered", SplitKind.SIMILARITY),
-        ("2d", SplitKind.TEMPORAL),
+        ("temporal", SplitKind.TEMPORAL),
         ("taxonomic-holdout", SplitKind.TAXONOMY),
     ],
 )
@@ -48,11 +48,11 @@ def test_split_aliases_are_intuitive(value, expected):
 
 def test_split_directory_names_are_stable() -> None:
     assert {kind: kind.directory_name for kind in SplitKind} == {
-        SplitKind.RANDOM: "2a_random_fragment",
-        SplitKind.GENOME: "2b_genome_holdout",
-        SplitKind.SIMILARITY: "2c_similarity_filtered",
-        SplitKind.TEMPORAL: "2d_temporal_holdout",
-        SplitKind.TAXONOMY: "2e_taxonomic_holdout",
+        SplitKind.RANDOM: "random_fragment",
+        SplitKind.GENOME: "genome_holdout",
+        SplitKind.SIMILARITY: "similarity_filtered",
+        SplitKind.TEMPORAL: "temporal_holdout",
+        SplitKind.TAXONOMY: "taxonomic_holdout",
     }
 
 
@@ -66,7 +66,7 @@ def test_unknown_and_empty_split_selections_are_actionable() -> None:
 
 
 def test_split_list_is_deduplicated_in_protocol_order():
-    assert parse_splits("taxonomy,2a,random,genome") == (
+    assert parse_splits("taxonomy,random-fragment,random,genome") == (
         SplitKind.RANDOM,
         SplitKind.GENOME,
         SplitKind.TAXONOMY,
@@ -82,7 +82,7 @@ schema_version = 1
 virus_paths = ["data/virus.fna"]
 host_paths = ["data/host.fna"]
 output_dir = "output"
-splits = ["2b", "2d"]
+splits = ["genome", "temporal"]
 temporal_cutoff = 2020-01-01
 fragment_lengths = [150, 500]
 """.strip(),

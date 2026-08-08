@@ -1,4 +1,4 @@
-"""Deterministic fragment sampling and the Test 2A diagnostic split.
+"""Deterministic fragment sampling and random-fragment splitting.
 
 Sampling is performed independently for each genome and requested length.  A
 coordinate is drawn uniformly from the union of all valid start coordinates on
@@ -257,8 +257,8 @@ def generate_fragments(
 
     ``fragments_per_genome`` is the total for each genome, divided as evenly as
     possible among ``fragment_lengths``. It must provide at least two fragments
-    per length, ensuring Test 2A can place every genome/length stratum on both
-    sides. Start coordinates are sampled uniformly with
+    per length, ensuring the random-fragment protocol can place every
+    genome/length stratum on both sides. Start coordinates are sampled uniformly with
     replacement across every eligible coordinate on every contig.
 
     Args:
@@ -408,15 +408,15 @@ def split_fragments_random(
     test_fraction: float,
     seed: int,
 ) -> tuple[tuple[Fragment, ...], tuple[Fragment, ...]]:
-    """Create the Test 2A random-fragment diagnostic split.
+    """Create the random-fragment diagnostic split.
 
     Membership is shuffled independently within every genome-by-length stratum
     so each source and requested length is represented in both partitions. The
     completed partitions are shuffled
     again with separate semantic streams, avoiding label- or source-grouped
     output order.  This diagnostic intentionally permits fragments from the
-    same genome in train and test; genome-disjoint evaluation belongs to Test
-    2B.
+    same genome in train and test; use the genome-holdout protocol when source
+    genomes must be disjoint.
 
     Args:
         fragments: Generated fragments with globally unique fragment IDs.
@@ -468,7 +468,8 @@ def split_fragments_random(
     )
     if too_small:
         raise InputError(
-            "Test 2A requires at least two fragments in every genome/length stratum so "
+            "The random-fragment protocol requires at least two fragments in every "
+            "genome/length stratum so "
             "both partitions are nonempty; insufficient strata: " + ", ".join(too_small)
         )
 
@@ -476,7 +477,9 @@ def split_fragments_random(
     test: list[Fragment] = []
     for genome_id, length in sorted(by_stratum):
         group = sorted(by_stratum[(genome_id, length)], key=lambda fragment: fragment.fragment_id)
-        random.Random(derive_seed(seed, "test-2a-membership-v2", genome_id, length)).shuffle(group)
+        random.Random(
+            derive_seed(seed, "random-fragment-membership-v3", genome_id, length)
+        ).shuffle(group)
         test_count = min(
             len(group) - 1,
             max(1, math.floor(len(group) * normalized_fraction + 0.5)),
@@ -486,13 +489,13 @@ def split_fragments_random(
 
     train.sort(key=lambda fragment: fragment.fragment_id)
     test.sort(key=lambda fragment: fragment.fragment_id)
-    random.Random(derive_seed(seed, "test-2a-train-order-v1")).shuffle(train)
-    random.Random(derive_seed(seed, "test-2a-test-order-v1")).shuffle(test)
+    random.Random(derive_seed(seed, "random-fragment-train-order-v2")).shuffle(train)
+    random.Random(derive_seed(seed, "random-fragment-test-order-v2")).shuffle(test)
 
     train_ids = {fragment.fragment_id for fragment in train}
     test_ids = {fragment.fragment_id for fragment in test}
     if train_ids & test_ids:
-        raise IntegrityError("Test 2A split produced overlapping fragment IDs")
+        raise IntegrityError("Random-fragment split produced overlapping fragment IDs")
     return tuple(train), tuple(test)
 
 

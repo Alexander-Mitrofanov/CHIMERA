@@ -1,7 +1,7 @@
 # Datasheet for CHIMERA-generated benchmark datasets
 
 This document is the project-level datasheet template for bundle schema
-`urn:chimera:benchmark-bundle:1`. It describes what CHIMERA generates and the
+`urn:chimera:benchmark-bundle:2`. It describes what CHIMERA generates and the
 bundled tiny fixture. A research release must copy this file into its deposited
 dataset and replace every bracketed field with dataset-specific facts.
 
@@ -15,8 +15,8 @@ not imply review or endorsement by that work's authors.
 - **Version:** [immutable dataset version]
 - **Persistent identifier:** [dataset DOI/handle; do not insert the CHIMERA
   software URL or a methods-paper DOI]
-- **Bundle schema:** `urn:chimera:benchmark-bundle:1`
-- **CHIMERA version:** [for example `1.0.0`]
+- **Bundle schema:** `urn:chimera:benchmark-bundle:2`
+- **CHIMERA version:** [for example `2.0.0`]
 - **Creators and affiliations:** [names/ORCIDs/roles]
 - **Maintainer:** [durable contact or repository]
 - **Release date:** [YYYY-MM-DD]
@@ -25,7 +25,7 @@ not imply review or endorsement by that work's authors.
   URLs/API commands, and persistent identifiers]
 - **Software citation:** See `CITATION.cff`; cite software separately.
 
-CHIMERA 1.0.0 has no asserted project DOI. Each published bundle should receive
+CHIMERA 2.0.0 has no asserted project DOI. Each published bundle should receive
 its own persistent identifier where possible.
 
 ## Motivation
@@ -33,11 +33,11 @@ its own persistent identifier where possible.
 CHIMERA bundles are intended to evaluate binary virus-versus-host fragment
 classifiers under five explicitly different train/test relationships:
 
-1. random fragments from seen genomes (2A diagnostic);
-2. entirely held-out source genomes (2B);
-3. genome-disjoint candidates measured and filtered by train similarity (2C);
-4. first-public-release dates on opposite sides of a cutoff (2D); and
-5. selected viral taxonomy values absent from training (2E).
+1. random fragments from seen genomes as a diagnostic;
+2. entirely held-out source genomes;
+3. genome-disjoint candidates measured and filtered by training similarity;
+4. first-public-release dates on opposite sides of a cutoff; and
+5. selected viral taxonomy values absent from training.
 
 The suite exists because a random fragment split cannot alone support an
 unseen-genome or novel-virus claim. The intended deliverable is a transparent
@@ -78,11 +78,11 @@ Dataset-specific composition:
 - Retained sources: [N viruses; N hosts; taxonomic and length distributions]
 - Preflight exclusions: [count/reasons]
 - Fragment lengths/count per source: [values]
-- 2A train/test records and sources: [counts]
-- 2B train/test records and sources: [counts]
-- 2C candidate/strict/excluded/stratum counts: [counts]
-- 2D train/test/excluded counts and cutoff: [counts/date]
-- 2E train/test/excluded counts, rank, and values: [counts/values]
+- Random-fragment train/test records and sources: [counts]
+- Genome-holdout train/test records and sources: [counts]
+- Similarity candidate/strict/excluded/stratum counts: [counts]
+- Temporal train/test/excluded counts and cutoff: [counts/date]
+- Taxonomic train/test/excluded counts, rank, and values: [counts/values]
 - Missing values: [fields/counts/policy]
 - Sensitive attributes: [assessment]
 
@@ -152,18 +152,18 @@ may wrap the origin and use an unwrapped end coordinate. Both orientations are
 sampled by default. Domain-separated BLAKE2b sub-seeds and stable ordering
 isolate decisions from input order.
 
-### 2A — random fragment diagnostic
+### Random-fragment diagnostic
 
 Every genome contributes non-empty train and test fragments. Fragment IDs are
 disjoint; source overlap is deliberate. This protocol must not be presented as
 evidence for unseen-genome generalization.
 
-### 2B — genome holdout
+### Genome holdout
 
 Whole user/content groups are assigned label-stratified before fragment
 generation. Source ID and exact canonical content do not cross partitions.
 
-### 2C — similarity-filtered holdout
+### Similarity-filtered holdout
 
 A content-disjoint candidate proposal is compared with training. The complete
 proposal is retained as `candidate_test`; `test` is the primary strict set.
@@ -177,13 +177,13 @@ alignment-derived all-candidate-vs-train table for publication analyses where
 ANI/coverage is the intended construct. Record tool/version, inputs, commands,
 coverage definition, no-match policy, and thresholds.
 
-### 2D — temporal holdout
+### Temporal holdout
 
 Training dates are on/before an inclusive cutoff; test dates are later. In the
 absence of an actual immutable historical reference and taxonomy snapshot, this
 is a **release-date-filtered retrospective** split, not prospective discovery.
 
-### 2E — taxonomic holdout
+### Taxonomic holdout
 
 Selected supplied viral rank strings are excluded from training. Matching is
 case-insensitive but otherwise exact and does not resolve taxonomy IDs,
@@ -206,7 +206,7 @@ and class viability, writes atomic deterministic files, and hashes semantic
 bundle contents. `chimera validate` independently checks a completed bundle,
 reconstructing fragments against the normalized per-sequence inventory and
 source FASTA. Its structured report distinguishes primary train/test
-FASTA/truth counts from auxiliary 2C candidate/stratum view counts; aggregate
+FASTA/truth counts from auxiliary similarity candidate/stratum view counts; aggregate
 record counts include both categories and are not unique-source counts.
 
 Dataset release evidence:
@@ -229,7 +229,7 @@ Appropriate uses, subject to source suitability, include:
 - controlled comparison of virus/host fragment classifiers;
 - measuring degradation from seen fragments toward unseen, dissimilar, later,
   or held-out-taxonomy sources;
-- data-loader and leakage diagnostic work with 2A;
+- data-loader and leakage diagnostic work with random-fragment splits;
 - ablation/sensitivity analysis across fragment lengths and similarity strata; and
 - auditable reproduction of a specifically configured published evaluation.
 
@@ -245,7 +245,7 @@ Do not use a CHIMERA bundle by itself to:
 - claim prospective temporal discovery without a genuine historical snapshot;
 - infer taxonomic rank from MinHash bins or treat defaults as universal viral
   boundaries;
-- report 2A as unseen-genome performance;
+- report random-fragment performance as unseen-genome performance;
 - infer organism pathogenicity, host association, phenotype, or ecological
   risk from the binary label;
 - redistribute source sequences contrary to their terms; or

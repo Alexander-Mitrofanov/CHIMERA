@@ -17,7 +17,7 @@ RUN python -m pip install --no-cache-dir "build==1.2.2" \
 
 FROM python:3.11.15-slim-bookworm AS runtime
 
-ARG CHIMERA_VERSION=1.0.0
+ARG CHIMERA_VERSION=2.0.0
 ARG VCS_REF=unknown
 
 LABEL org.opencontainers.image.title="CHIMERA" \

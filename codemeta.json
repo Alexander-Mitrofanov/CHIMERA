@@ -4,7 +4,7 @@
   "name": "CHIMERA",
   "description": "Leakage-aware, reproducible virus-versus-host benchmark generator with random-fragment, genome-level, similarity-filtered, temporal, and taxonomic holdout protocols.",
   "abstract": "CHIMERA generates deterministic synthetic DNA-fragment evaluation bundles with auditable truth, source assignments, exclusions, provenance, and checksums. It generates benchmark data and does not train or validate a classifier.",
-  "softwareVersion": "1.0.0",
+  "softwareVersion": "2.0.0",
   "datePublished": "2026-08-08",
   "codeRepository": "https://github.com/Alexander-Mitrofanov/CHIMERA",
   "issueTracker": "https://github.com/Alexander-Mitrofanov/CHIMERA/issues",

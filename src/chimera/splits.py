@@ -459,7 +459,7 @@ def genome_holdout(
     test_fraction: float = 0.20,
     seed: int = 42,
 ) -> SplitPlan:
-    """Create Test 2B: label-stratified, content-group-disjoint holdout."""
+    """Create a label-stratified, content-group-disjoint genome holdout."""
 
     groups = _prepare_groups(genomes)
     partitions = _stratified_partitions(
@@ -563,7 +563,7 @@ def temporal_holdout(
     missing_metadata: MissingMetadataPolicy | str = MissingMetadataPolicy.ERROR,
     historical_snapshot: str | None = None,
 ) -> SplitPlan:
-    """Create Test 2D with an inclusive training release-date cutoff."""
+    """Create a temporal holdout with an inclusive training release-date cutoff."""
 
     _validate_fraction(test_fraction)
     policy = _coerce_missing_policy(missing_metadata)
@@ -809,7 +809,7 @@ def taxonomic_holdout(
     auto_holdout_count: int = 1,
     missing_metadata: MissingMetadataPolicy | str = MissingMetadataPolicy.ERROR,
 ) -> SplitPlan:
-    """Create Test 2E by holding complete viral taxa out of training."""
+    """Create a taxonomic holdout by keeping complete viral taxa out of training."""
 
     _validate_fraction(test_fraction)
     policy = _coerce_missing_policy(missing_metadata)
@@ -952,7 +952,7 @@ def similarity_filtered_holdout(
     similarity_bands: SimilarityBands = _DEFAULT_SIMILARITY_BANDS,
     similarity_table: Path | None = None,
 ) -> SplitPlan:
-    """Create Test 2C and explicitly exclude candidates above the strict gate."""
+    """Create a similarity-filtered holdout with an explicit strict gate."""
 
     _validate_fraction(test_fraction)
     _validate_similarity_parameters(
@@ -1287,7 +1287,7 @@ def build_split_plan(
         raise ConfigurationError(f"Unknown split kind {kind!r}") from exc
     if split_kind is SplitKind.RANDOM:
         raise ConfigurationError(
-            "Random-fragment Test 2A is assigned after fragment generation and has no "
+            "Random-fragment protocol is assigned after fragment generation and has no "
             "source-genome SplitPlan"
         )
     if split_kind is SplitKind.GENOME:

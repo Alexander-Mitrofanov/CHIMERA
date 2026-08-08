@@ -25,7 +25,8 @@ itself validate CHIMERA or make its protocols interchangeable with those tools.
 
 One FASTA record is a contig or segment identified by `sequence_id`. Metadata
 may map several records to one `genome_id`; that genome is the indivisible
-biological source for Tests 2B–2E. The configured input channel supplies the
+biological source for the genome, similarity-filtered, temporal, and taxonomic
+holdout protocols. The configured input channel supplies the
 binary `virus` or `host` label, and an optional metadata label must agree. A
 multi-record FASTA always requires an exhaustive metadata table because record
 boundaries alone do not say whether records are independent genomes or grouped
@@ -120,7 +121,7 @@ They are not a promise that every future CHIMERA/Python implementation will
 reproduce historical pseudorandom bytes. Archive the version, environment,
 resolved configuration, input hashes, output checksums, and seed.
 
-## Test 2A — random fragment split
+## Random-fragment diagnostic
 
 1. Generate the complete requested fragment set from every genome.
 2. For each genome independently, derive a stable shuffled order.
@@ -133,7 +134,7 @@ both partitions by design. This is a useful diagnostic for data loading,
 optimization, and continuity with earlier evaluations, but it deliberately
 permits genome-level dependence and must not be the sole generalization result.
 
-## Test 2B — genome-level split
+## Genome holdout
 
 Genome content groups are partitioned before fragment generation. Viruses and
 hosts are handled separately to approximate `test_fraction` while guaranteeing
@@ -142,16 +143,16 @@ after the immutable plan is formed are fragments generated from the assigned
 sources.
 
 The validation invariant is zero overlap in fragment ID, user `genome_id`, and
-canonical content hash. Test 2B answers whether a classifier recognizes unseen
+canonical content hash. This protocol asks whether a classifier recognizes unseen
 source genomes in this sampled collection. It does not enforce a maximum
 homology between different genomes.
 
-## Test 2C — similarity-filtered split
+## Similarity-filtered holdout
 
 ### Candidate proposal
 
 CHIMERA first makes the same kind of label-stratified, content-disjoint genome
-proposal as 2B. Proposed training genomes remain training. Every proposed test
+proposal as the genome-holdout protocol. Proposed training genomes remain training. Every proposed test
 genome is a **candidate** and is compared with all training genomes. The
 proposal is independent of input order and similarity values.
 
@@ -239,7 +240,7 @@ non-empty candidate stratum, the strict set, excluded counts, external method
 and version, reference snapshot, identity/coverage definitions, and the full
 versioned pairwise table.
 
-## Test 2D — temporal split
+## Temporal holdout
 
 `release_date` is interpreted as first public accession release, consistent
 with the NCBI Virus data report
@@ -275,7 +276,7 @@ test material handled under a documented policy. CHIMERA can consume such
 files but neither retrieves nor certifies their historical status. Report the
 snapshot archive and identifiers before using prospective language.
 
-## Test 2E — taxonomic holdout
+## Taxonomic holdout
 
 CHIMERA chooses explicit or stably auto-selected viral values at one metadata
 rank. All viral sources with those values test; remaining represented viral
@@ -290,16 +291,16 @@ Users must normalize values against one named, versioned taxonomy snapshot and
 audit polyphyly/reclassification risks. Broader environmental metadata can use
 MIxS conventions ([canonical MIxS repository](https://github.com/GenomicsStandardsConsortium/mixs)).
 
-2E measures generalization beyond represented string-defined taxon groups at
-the chosen rank. It does not guarantee sequence dissimilarity; jointly inspect
-2C similarity values. Conversely, a sequence-novel 2C item need not belong to a
-new named taxon.
+Taxonomic holdout measures generalization beyond represented string-defined
+taxon groups at the chosen rank. It does not guarantee sequence dissimilarity;
+jointly inspect the similarity-filtered results. Conversely, a sequence-novel
+item need not belong to a new named taxon.
 
 ## Leakage and validation invariants
 
 For every written protocol, CHIMERA checks fragment-ID disjointness and class
-viability. For 2B–2E it additionally requires no train/test `genome_id` or
-canonical source-content overlap. Protocol-specific plans validate temporal,
+viability. For the source-level holdout protocols it additionally requires no
+train/test `genome_id` or canonical source-content overlap. Protocol-specific plans validate temporal,
 taxonomic, and similarity rules. The bundle stores these summaries in
 `split.json` and an independent `chimera validate` command checks the completed
 artifact and checksums. Validation reconstructs fragment sequence from the
@@ -308,7 +309,7 @@ declared linear/circular topology and strand, and checks truth
 `source_genome_id` and `source_content_group_id` against the retained sources.
 
 The structured validation report separates primary train/test FASTA and truth
-counts from auxiliary 2C `candidate_test`/stratum view counts. Its aggregate
+counts from auxiliary similarity `candidate_test`/stratum view counts. Its aggregate
 record fields add those two categories and therefore count verified view rows,
 not unique fragments or biological sources.
 

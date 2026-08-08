@@ -8,6 +8,19 @@ All notable user-visible changes are documented here. The format follows
 
 No user-visible changes recorded.
 
+## [2.0.0] — 2026-08-08
+
+### Changed
+
+- Reworked the README around CHIMERA's actual purpose, inputs, workflow,
+  outputs, and interpretation rather than terminology inherited from an
+  external evaluation.
+- Replaced numbered protocol labels throughout the CLI, schemas, bundle paths,
+  validation messages, and documentation with descriptive CHIMERA names.
+- Advanced the benchmark bundle and split-manifest schemas to version 2 because
+  the descriptive output directories and protocol identifiers replace the v1
+  filesystem contract.
+
 ## [1.0.0] — 2026-08-08
 
 This is the first publication-ready release of the rewritten CHIMERA engine.
@@ -16,7 +29,7 @@ leakage-aware benchmark bundle.
 
 ### Added
 
-- One-command `chimera suite` orchestration of Tests 2A–2E, plus selected
+- One-command `chimera suite` orchestration of all five protocols, plus selected
   `chimera generate` runs and TOML/CLI override support.
 - Strict recursive plain/gzip IUPAC DNA FASTA loading, mandatory metadata for
   multi-record FASTA, rejection of ambiguous legacy date columns, exhaustive
@@ -28,16 +41,16 @@ leakage-aware benchmark bundle.
   balanced requested lengths, both/forward strand modes, bounded ambiguity
   rejection, opaque label-free identifiers, and explicit linear/circular
   0-based half-open truth.
-- Test 2A deterministic per-genome random-fragment diagnostic with non-empty
+- Deterministic per-genome random-fragment diagnostic with non-empty
   partitions and interleaved semantic output order.
-- Test 2B label-stratified whole-genome/content holdout.
-- Test 2C genome-disjoint candidate proposal, complete candidate view, strict
+- Label-stratified whole-genome/content holdout.
+- Genome-disjoint similarity candidate proposal, complete candidate view, strict
   identity/coverage gate, five candidate similarity strata, dependency-free
   canonical k-mer bottom-k MinHash/Mash-style estimates, and external
   all-candidate-vs-train similarity-table support.
-- Test 2D inclusive first-public-release-date holdout with explicit missing-data
+- Inclusive first-public-release-date holdout with explicit missing-data
   accounting, stable viable auto-cutoff, and retrospective provenance wording.
-- Test 2E explicit or stable automatic viral taxon holdout with independently
+- Explicit or stable automatic viral taxon holdout with independently
   genome-disjoint host partitions.
 - Atomic bundle publication and guarded `--force`, deterministic JSON/TSV/gzip,
   semantic BLAKE2b seed derivation, content-addressed input receipts without
@@ -87,5 +100,6 @@ leakage-aware benchmark bundle.
   correctness of user-supplied labels, dates, taxonomy, or model pretraining
   provenance.
 
-[Unreleased]: https://github.com/Alexander-Mitrofanov/CHIMERA/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Alexander-Mitrofanov/CHIMERA/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/Alexander-Mitrofanov/CHIMERA/tree/v2.0.0
 [1.0.0]: https://github.com/Alexander-Mitrofanov/CHIMERA/tree/v1.0.0

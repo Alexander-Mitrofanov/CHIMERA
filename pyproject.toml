@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "chimera-metagenome-generator"
-version = "1.0.0"
+version = "2.0.0"
 description = "Leakage-aware, reproducible virus-versus-host benchmark generator"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -66,7 +66,6 @@ include = [
   "/.pre-commit-config.yaml",
   "/CHANGELOG.md",
   "/CITATION.cff",
-  "/CODE_OF_CONDUCT.md",
   "/CONTRIBUTING.md",
   "/DATASHEET.md",
   "/LICENSE",

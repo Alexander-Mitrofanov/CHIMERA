@@ -34,14 +34,14 @@ class SplitKind(StrEnum):
     def directory_name(self) -> str:
         """Return the stable, human-sortable output directory name."""
 
-        prefixes = {
-            SplitKind.RANDOM: "2a_random_fragment",
-            SplitKind.GENOME: "2b_genome_holdout",
-            SplitKind.SIMILARITY: "2c_similarity_filtered",
-            SplitKind.TEMPORAL: "2d_temporal_holdout",
-            SplitKind.TAXONOMY: "2e_taxonomic_holdout",
+        names = {
+            SplitKind.RANDOM: "random_fragment",
+            SplitKind.GENOME: "genome_holdout",
+            SplitKind.SIMILARITY: "similarity_filtered",
+            SplitKind.TEMPORAL: "temporal_holdout",
+            SplitKind.TAXONOMY: "taxonomic_holdout",
         }
-        return prefixes[self]
+        return names[self]
 
     @classmethod
     def parse(cls, value: str) -> Self:
@@ -49,18 +49,13 @@ class SplitKind(StrEnum):
 
         normalized = value.strip().lower().replace("_", "-")
         aliases = {
-            "2a": cls.RANDOM,
             "random": cls.RANDOM,
             "random-fragment": cls.RANDOM,
-            "2b": cls.GENOME,
             "genome": cls.GENOME,
             "genome-level": cls.GENOME,
-            "2c": cls.SIMILARITY,
             "similarity": cls.SIMILARITY,
             "similarity-filtered": cls.SIMILARITY,
-            "2d": cls.TEMPORAL,
             "temporal": cls.TEMPORAL,
-            "2e": cls.TAXONOMY,
             "taxonomy": cls.TAXONOMY,
             "taxonomic": cls.TAXONOMY,
             "taxonomic-holdout": cls.TAXONOMY,
