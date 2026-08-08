@@ -49,8 +49,8 @@ from .schema_resources import (
 from .similarity import format_similarity_value
 from .splits import SplitAssignment, SplitPartition, SplitPlan, build_split_plan
 
-_BUNDLE_SCHEMA = "urn:chimera:benchmark-bundle:2"
-_SPLIT_SCHEMA = "urn:chimera:split-manifest:2"
+_BUNDLE_SCHEMA = "urn:chimera:benchmark-bundle:1"
+_SPLIT_SCHEMA = "urn:chimera:split-manifest:1"
 _ROOT_FILES = (
     ".chimera-bundle",
     "REPORT.md",

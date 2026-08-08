@@ -1,7 +1,7 @@
 # Datasheet for CHIMERA-generated benchmark datasets
 
 This document is the project-level datasheet template for bundle schema
-`urn:chimera:benchmark-bundle:2`. It describes what CHIMERA generates and the
+`urn:chimera:benchmark-bundle:1`. It describes what CHIMERA generates and the
 bundled tiny fixture. A research release must copy this file into its deposited
 dataset and replace every bracketed field with dataset-specific facts.
 
@@ -15,8 +15,8 @@ not imply review or endorsement by that work's authors.
 - **Version:** [immutable dataset version]
 - **Persistent identifier:** [dataset DOI/handle; do not insert the CHIMERA
   software URL or a methods-paper DOI]
-- **Bundle schema:** `urn:chimera:benchmark-bundle:2`
-- **CHIMERA version:** [for example `2.0.0`]
+- **Bundle schema:** `urn:chimera:benchmark-bundle:1`
+- **CHIMERA version:** [for example `1.0.0`]
 - **Creators and affiliations:** [names/ORCIDs/roles]
 - **Maintainer:** [durable contact or repository]
 - **Release date:** [YYYY-MM-DD]
@@ -25,7 +25,7 @@ not imply review or endorsement by that work's authors.
   URLs/API commands, and persistent identifiers]
 - **Software citation:** See `CITATION.cff`; cite software separately.
 
-CHIMERA 2.0.0 has no asserted project DOI. Each published bundle should receive
+CHIMERA 1.0.0 has no asserted project DOI. Each published bundle should receive
 its own persistent identifier where possible.
 
 ## Motivation

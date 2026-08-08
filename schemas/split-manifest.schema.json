@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:chimera:schema:split-manifest:2",
-  "title": "CHIMERA split manifest v2",
+  "$id": "urn:chimera:schema:split-manifest:1",
+  "title": "CHIMERA split manifest v1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,7 +16,7 @@
     "excluded_genomes"
   ],
   "properties": {
-    "schema": {"const": "urn:chimera:split-manifest:2"},
+    "schema": {"const": "urn:chimera:split-manifest:1"},
     "protocol": {"enum": ["random", "genome", "similarity", "temporal", "taxonomy"]},
     "protocol_id": {"enum": ["random", "genome", "similarity", "temporal", "taxonomy"]},
     "parameters": {"type": "object"},

@@ -48,8 +48,8 @@ from .splits import (
 )
 from .validation import validate_bundle
 
-BUNDLE_SCHEMA = "urn:chimera:benchmark-bundle:2"
-SPLIT_SCHEMA = "urn:chimera:split-manifest:2"
+BUNDLE_SCHEMA = "urn:chimera:benchmark-bundle:1"
+SPLIT_SCHEMA = "urn:chimera:split-manifest:1"
 ASSIGNMENT_COLUMNS = (
     "genome_id",
     "group_id",

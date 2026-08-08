@@ -1,8 +1,8 @@
 # Output formats
 
 This document describes CHIMERA bundle schema version
-`urn:chimera:benchmark-bundle:2` and split schema
-`urn:chimera:split-manifest:2`. Treat schema URNs and column names—not prose
+`urn:chimera:benchmark-bundle:1` and split schema
+`urn:chimera:split-manifest:1`. Treat schema URNs and column names—not prose
 layout or file ordering—as the machine interface. Validate before consuming:
 
 ```console
@@ -116,7 +116,7 @@ The machine-facing bundle manifest contains:
 
 | Key | Meaning |
 |---|---|
-| `schema` | `urn:chimera:benchmark-bundle:2`. |
+| `schema` | `urn:chimera:benchmark-bundle:1`. |
 | `tool` | CHIMERA name, exact version, `software_content_sha256`, `git_revision`, and nullable `git_dirty` provenance. The content receipt hashes the executable package sources and canonical schemas, so installed wheels remain identifiable when no Git checkout is present. |
 | `data_model` | Alphabet; explicit linear/circular coordinate systems and semantics; opaque-header rule; source grouping; synthetic status. |
 | `randomness` | Master seed, PRNG description, and semantic seed-derivation namespace. |
@@ -338,7 +338,7 @@ The stable split manifest contains:
 
 | Key | Meaning |
 |---|---|
-| `schema` | `urn:chimera:split-manifest:2`. |
+| `schema` | `urn:chimera:split-manifest:1`. |
 | `protocol` | Canonical name: `random`, `genome`, `similarity`, `temporal`, or `taxonomy`. |
 | `protocol_id` | Canonical protocol identifier: `random`, `genome`, `similarity`, `temporal`, or `taxonomy`. |
 | `parameters` | Resolved protocol parameters, operators, grouping, cutoff/taxa, and method/source. |

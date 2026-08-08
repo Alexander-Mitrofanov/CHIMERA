@@ -1,6 +1,6 @@
 # CHIMERA user guide
 
-This guide covers the command-line interface for CHIMERA 2.0.0. Run
+This guide covers the command-line interface for CHIMERA 1.0.0. Run
 `chimera COMMAND --help` for the installed version's authoritative flag list.
 
 ## Installation

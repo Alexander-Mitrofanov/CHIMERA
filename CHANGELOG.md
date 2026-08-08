@@ -8,24 +8,12 @@ All notable user-visible changes are documented here. The format follows
 
 No user-visible changes recorded.
 
-## [2.0.0] — 2026-08-08
-
-### Changed
-
-- Reworked the README around CHIMERA's actual purpose, inputs, workflow,
-  outputs, and interpretation rather than terminology inherited from an
-  external evaluation.
-- Replaced numbered protocol labels throughout the CLI, schemas, bundle paths,
-  validation messages, and documentation with descriptive CHIMERA names.
-- Advanced the benchmark bundle and split-manifest schemas to version 2 because
-  the descriptive output directories and protocol identifiers replace the v1
-  filesystem contract.
-
 ## [1.0.0] — 2026-08-08
 
 This is the first publication-ready release of the rewritten CHIMERA engine.
 It replaces the historical MetagenomeGenerator workflow with a schema-versioned,
-leakage-aware benchmark bundle.
+leakage-aware benchmark bundle with descriptive protocol names and
+purpose-first end-user documentation.
 
 ### Added
 
@@ -100,6 +88,5 @@ leakage-aware benchmark bundle.
   correctness of user-supplied labels, dates, taxonomy, or model pretraining
   provenance.
 
-[Unreleased]: https://github.com/Alexander-Mitrofanov/CHIMERA/compare/v2.0.0...HEAD
-[2.0.0]: https://github.com/Alexander-Mitrofanov/CHIMERA/tree/v2.0.0
+[Unreleased]: https://github.com/Alexander-Mitrofanov/CHIMERA/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/Alexander-Mitrofanov/CHIMERA/tree/v1.0.0
