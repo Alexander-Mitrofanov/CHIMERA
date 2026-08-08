@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chimera:schema:split-manifest:1",
+  "title": "CHIMERA split manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "protocol",
+    "protocol_id",
+    "parameters",
+    "validation",
+    "train",
+    "test",
+    "truth_rows",
+    "excluded_genomes"
+  ],
+  "properties": {
+    "schema": {"const": "urn:chimera:split-manifest:1"},
+    "protocol": {"enum": ["random", "genome", "similarity", "temporal", "taxonomy"]},
+    "protocol_id": {"enum": ["2a", "2b", "2c", "2d", "2e"]},
+    "parameters": {"type": "object"},
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "diagnostic_only",
+        "fragment_id_overlap",
+        "exact_fragment_content_overlap",
+        "test_fragments_with_coordinate_overlap",
+        "source_genome_overlap",
+        "source_content_hash_overlap",
+        "train_source_genomes",
+        "test_source_genomes"
+      ],
+      "properties": {
+        "status": {"const": "pass"},
+        "diagnostic_only": {"type": "boolean"},
+        "fragment_id_overlap": {"const": 0},
+        "exact_fragment_content_overlap": {"type": "integer", "minimum": 0},
+        "test_fragments_with_coordinate_overlap": {"type": "integer", "minimum": 0},
+        "source_genome_overlap": {"type": "integer", "minimum": 0},
+        "source_content_hash_overlap": {"type": "integer", "minimum": 0},
+        "train_source_genomes": {"type": "integer", "minimum": 2},
+        "test_source_genomes": {"type": "integer", "minimum": 2}
+      }
+    },
+    "train": {"$ref": "#/$defs/partitionStats"},
+    "test": {"$ref": "#/$defs/partitionStats"},
+    "candidate_test": {"$ref": "#/$defs/partitionStats"},
+    "truth_rows": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["train", "test"],
+      "properties": {
+        "train": {"type": "integer", "minimum": 1},
+        "test": {"type": "integer", "minimum": 1}
+      }
+    },
+    "excluded_genomes": {"type": "integer", "minimum": 0}
+  },
+  "$defs": {
+    "positiveCounts": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "integer", "minimum": 1}
+    },
+    "partitionStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "records",
+        "bases",
+        "gc_fraction",
+        "ambiguous_fraction",
+        "records_by_label",
+        "records_by_label_and_length",
+        "records_by_length",
+        "source_genomes",
+        "records_by_genome"
+      ],
+      "properties": {
+        "records": {"type": "integer", "minimum": 1},
+        "bases": {"type": "integer", "minimum": 1},
+        "gc_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "ambiguous_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "records_by_label": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["host", "virus"],
+          "properties": {
+            "host": {"type": "integer", "minimum": 1},
+            "virus": {"type": "integer", "minimum": 1}
+          }
+        },
+        "records_by_label_and_length": {
+          "type": "object",
+          "minProperties": 2,
+          "patternProperties": {
+            "^(host|virus):[1-9][0-9]*$": {"type": "integer", "minimum": 1}
+          },
+          "additionalProperties": false
+        },
+        "records_by_length": {
+          "type": "object",
+          "minProperties": 1,
+          "patternProperties": {
+            "^[1-9][0-9]*$": {"type": "integer", "minimum": 1}
+          },
+          "additionalProperties": false
+        },
+        "source_genomes": {"type": "integer", "minimum": 2},
+        "records_by_genome": {"$ref": "#/$defs/positiveCounts"}
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: >-
+  If you use CHIMERA, cite this exact software version and repository URL,
+  and cite each generated benchmark dataset with its own persistent identifier.
+type: software
+title: "CHIMERA: leakage-aware virus-versus-host benchmark generator"
+abstract: >-
+  CHIMERA generates deterministic synthetic DNA-fragment evaluation bundles
+  for virus-versus-host classifiers, including random-fragment, genome-level,
+  similarity-filtered, temporal, and taxonomic holdout protocols with auditable
+  truth, assignments, exclusions, provenance, and checksums.
+authors:
+  - name: CHIMERA contributors
+version: 1.0.0
+date-released: 2026-08-08
+repository-code: "https://github.com/Alexander-Mitrofanov/CHIMERA"
+url: "https://github.com/Alexander-Mitrofanov/CHIMERA"
+license: MIT
+keywords:
+  - bioinformatics
+  - benchmark
+  - metagenomics
+  - machine learning
+  - virus
+  - data leakage
+  - reproducibility

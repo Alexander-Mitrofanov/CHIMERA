@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.coverage.*
+coverage.xml
+.hypothesis/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+.venv/
+build/
+dist/
+htmlcov/
+site/
+
+# Generated benchmark data can be very large.
+benchmark-output/
+examples/output/
+examples/tiny/tiny-benchmark/
+
+# Editors and operating systems.
+.DS_Store
+.idea/
+.vscode/
+*~

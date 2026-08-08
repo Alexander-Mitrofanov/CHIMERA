@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chimera:schema:reference-metadata-row:1",
+  "title": "CHIMERA input metadata row v1",
+  "description": "One logical metadata.tsv/CSV row. Unknown string fields are retained as extra provenance.",
+  "type": "object",
+  "required": ["sequence_id"],
+  "properties": {
+    "sequence_id": {"$ref": "#/$defs/stableId"},
+    "genome_id": {"$ref": "#/$defs/optionalStableId"},
+    "label": {"enum": ["virus", "host", ""]},
+    "accession_version": {"$ref": "#/$defs/optionalStableId"},
+    "release_date": {"$ref": "#/$defs/optionalDate"},
+    "topology": {"enum": ["linear", "circular", ""]},
+    "realm": {"type": "string"},
+    "kingdom": {"type": "string"},
+    "phylum": {"type": "string"},
+    "class": {"type": "string"},
+    "order": {"type": "string"},
+    "family": {"type": "string"},
+    "genus": {"type": "string"},
+    "species": {"type": "string"}
+  },
+  "additionalProperties": {"type": "string"},
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]{0,254}$"
+    },
+    "optionalStableId": {
+      "oneOf": [
+        {"const": ""},
+        {"$ref": "#/$defs/stableId"}
+      ]
+    },
+    "optionalDate": {
+      "oneOf": [
+        {"const": ""},
+        {"type": "string", "format": "date"}
+      ]
+    }
+  }
+}

@@ -1,0 +1,23 @@
+name: chimera-dev
+
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.11
+  - pip>=26.1.2,<27
+  - python-build>=1.2.2,<2
+  - hatchling>=1.27,<2
+  - hypothesis>=6.130,<7
+  - mypy>=1.15,<2
+  - pip-audit>=2.8,<3
+  - pre-commit>=4,<5
+  - pytest>=8.3,<10
+  - pytest-cov>=6,<8
+  - ruff>=0.11,<1
+  - twine>=6,<7
+  - pip:
+      # Install only CHIMERA through pip; development tools above remain
+      # managed consistently by Conda; this bounded file is not a lockfile.
+      - --editable .

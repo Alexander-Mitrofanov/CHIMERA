@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chimera:schema:benchmark-bundle:1",
+  "title": "CHIMERA benchmark bundle manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "tool", "data_model", "randomness", "references", "splits"],
+  "properties": {
+    "schema": {"const": "urn:chimera:benchmark-bundle:1"},
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "software_content_sha256",
+        "git_revision",
+        "git_dirty"
+      ],
+      "properties": {
+        "name": {"const": "CHIMERA"},
+        "version": {"type": "string", "minLength": 1},
+        "software_content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "git_revision": {
+          "oneOf": [
+            {"const": "unknown"},
+            {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+          ]
+        },
+        "git_dirty": {"type": ["boolean", "null"]}
+      }
+    },
+    "data_model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alphabet",
+        "coordinate_system",
+        "coordinate_systems",
+        "coordinate_semantics",
+        "fragment_headers",
+        "grouping",
+        "synthetic"
+      ],
+      "properties": {
+        "alphabet": {"const": "IUPAC DNA"},
+        "coordinate_system": {"const": "0-based-half-open"},
+        "coordinate_systems": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["linear", "circular"],
+          "properties": {
+            "linear": {"const": "0-based-half-open"},
+            "circular": {"const": "0-based-half-open-circular"}
+          }
+        },
+        "coordinate_semantics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["linear", "circular"],
+          "properties": {
+            "linear": {"type": "string", "minLength": 1},
+            "circular": {"type": "string", "minLength": 1}
+          }
+        },
+        "fragment_headers": {"const": "opaque label-free identifiers"},
+        "grouping": {"type": "string", "minLength": 1},
+        "synthetic": {"const": true}
+      }
+    },
+    "randomness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "master_seed",
+        "algorithm",
+        "seed_derivation",
+        "python_implementation",
+        "python_version"
+      ],
+      "properties": {
+        "master_seed": {"type": "integer"},
+        "algorithm": {"type": "string", "minLength": 1},
+        "seed_derivation": {"const": "chimera.seed.v1"},
+        "python_implementation": {"type": "string", "minLength": 1},
+        "python_version": {"type": "string", "minLength": 1}
+      }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "inputs", "preflight_exclusions"],
+      "properties": {
+        "count": {"type": "integer", "minimum": 2},
+        "inputs": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["content_id", "role", "sha256"],
+            "properties": {
+              "content_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+              "role": {
+                "enum": [
+                  "reference_fasta",
+                  "reference_metadata",
+                  "external_similarity_table"
+                ]
+              },
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+            }
+          }
+        },
+        "preflight_exclusions": {"type": "integer", "minimum": 0}
+      }
+    },
+    "splits": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"enum": ["random", "genome", "similarity", "temporal", "taxonomy"]},
+      "additionalProperties": {
+        "$ref": "urn:chimera:schema:split-manifest:1"
+      }
+    }
+  }
+}

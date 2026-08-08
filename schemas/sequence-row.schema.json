@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chimera:schema:sequence-row:1",
+  "title": "CHIMERA sequences.tsv logical row v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sequence_id",
+    "genome_id",
+    "label",
+    "accession_version",
+    "release_date",
+    "topology",
+    "length_nt",
+    "sha256",
+    "canonical_sha256",
+    "source_input_id",
+    "taxonomy",
+    "metadata_extra"
+  ],
+  "properties": {
+    "sequence_id": {"$ref": "#/$defs/stableId"},
+    "genome_id": {"$ref": "#/$defs/stableId"},
+    "label": {"enum": ["virus", "host"]},
+    "accession_version": {"$ref": "#/$defs/optionalStableId"},
+    "release_date": {"$ref": "#/$defs/optionalDate"},
+    "topology": {"enum": ["linear", "circular"]},
+    "length_nt": {"type": "integer", "minimum": 1},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "canonical_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_input_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "taxonomy": {
+      "type": "string",
+      "contentMediaType": "application/json",
+      "contentSchema": {
+        "type": "object",
+        "additionalProperties": {"type": "string"}
+      }
+    },
+    "metadata_extra": {
+      "type": "string",
+      "contentMediaType": "application/json",
+      "contentSchema": {
+        "type": "object",
+        "additionalProperties": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]{0,254}$"
+    },
+    "optionalStableId": {
+      "oneOf": [
+        {"const": ""},
+        {"$ref": "#/$defs/stableId"}
+      ]
+    },
+    "optionalDate": {
+      "oneOf": [
+        {"const": ""},
+        {"type": "string", "format": "date"}
+      ]
+    }
+  }
+}

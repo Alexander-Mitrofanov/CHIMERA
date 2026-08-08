@@ -1,0 +1,26 @@
+[benchmark]
+schema_version = 1
+virus_paths = ["viruses.fna"]
+host_paths = ["hosts.fna"]
+metadata_path = "metadata.tsv"
+output_dir = "tiny-benchmark"
+splits = ["random", "genome", "similarity", "temporal", "taxonomy"]
+
+seed = 20260808
+test_fraction = 0.5
+fragment_lengths = [31, 61]
+fragments_per_genome = 8
+strand_mode = "both"
+max_ambiguous_fraction = 0.0
+duplicate_policy = "error"
+missing_metadata = "error"
+
+temporal_cutoff = "2020-12-31"
+taxonomy_rank = "family"
+holdout_taxa = ["Betaexampleviridae"]
+
+similarity_k = 15
+sketch_size = 200
+max_train_similarity = 0.95
+min_similarity_coverage = 0.85
+similarity_bands = { high = 0.90, moderate = 0.70, low = 0.30 }

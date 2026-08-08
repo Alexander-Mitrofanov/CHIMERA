@@ -1,0 +1,10 @@
+**
+!containers/
+!containers/Dockerfile
+!LICENSE
+!README.md
+!pyproject.toml
+!schemas/
+!schemas/**
+!src/
+!src/**

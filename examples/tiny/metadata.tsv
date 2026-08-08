@@ -1,0 +1,5 @@
+sequence_id	genome_id	label	accession_version	release_date	family	genus	species
+v_alpha	v_alpha	virus	SYNV000001.1	2018-05-11	Alphaexampleviridae	Alphatinyvirus	Alphatinyvirus one
+v_beta	v_beta	virus	SYNV000002.1	2022-07-19	Betaexampleviridae	Betatinyvirus	Betatinyvirus two
+h_old	h_old	host	SYNH000001.1	2017-03-02			Synthetic host one
+h_new	h_new	host	SYNH000002.1	2023-09-14			Synthetic host two

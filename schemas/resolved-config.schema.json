@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chimera:schema:resolved-config:1",
+  "title": "CHIMERA resolved generation configuration v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "virus_paths",
+    "host_paths",
+    "output_dir",
+    "metadata_path",
+    "splits",
+    "seed",
+    "test_fraction",
+    "fragment_lengths",
+    "fragments_per_genome",
+    "strand_mode",
+    "max_ambiguous_fraction",
+    "duplicate_policy",
+    "missing_metadata",
+    "temporal_cutoff",
+    "taxonomy_rank",
+    "holdout_taxa",
+    "auto_holdout_count",
+    "similarity_k",
+    "sketch_size",
+    "max_train_similarity",
+    "min_similarity_coverage",
+    "similarity_bands",
+    "similarity_table"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "virus_paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/contentId"}
+    },
+    "host_paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/contentId"}
+    },
+    "output_dir": {"const": "bundle"},
+    "metadata_path": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/contentId"}
+      ]
+    },
+    "splits": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["random", "genome", "similarity", "temporal", "taxonomy"]}
+    },
+    "seed": {"type": "integer"},
+    "test_fraction": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
+    "fragment_lengths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "integer", "minimum": 1}
+    },
+    "fragments_per_genome": {"type": "integer", "minimum": 2},
+    "strand_mode": {"enum": ["both", "forward"]},
+    "max_ambiguous_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+    "duplicate_policy": {"enum": ["error", "drop"]},
+    "missing_metadata": {"enum": ["error", "exclude"]},
+    "temporal_cutoff": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "format": "date"}
+      ]
+    },
+    "taxonomy_rank": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\s]+$"
+    },
+    "holdout_taxa": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "auto_holdout_count": {"type": "integer", "minimum": 1},
+    "similarity_k": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 63,
+      "not": {"multipleOf": 2}
+    },
+    "sketch_size": {"type": "integer", "minimum": 100},
+    "max_train_similarity": {"type": "number", "minimum": 0, "maximum": 1},
+    "min_similarity_coverage": {"type": "number", "minimum": 0, "maximum": 1},
+    "similarity_bands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["high", "moderate", "low"],
+      "properties": {
+        "high": {"type": "number", "minimum": 0, "maximum": 1},
+        "moderate": {"type": "number", "minimum": 0, "maximum": 1},
+        "low": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "similarity_table": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/contentId"}
+      ]
+    }
+  },
+  "$defs": {
+    "contentId": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chimera:schema:exclusion-row:1",
+  "title": "CHIMERA excluded.tsv logical row v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "genome_id",
+    "label",
+    "split",
+    "reason",
+    "duplicate_of",
+    "source_sha256",
+    "source_accession_version",
+    "release_date",
+    "nearest_train_genome_id",
+    "max_train_similarity",
+    "similarity_coverage",
+    "similarity_method",
+    "strict_gate_train_genome_id",
+    "strict_gate_similarity",
+    "strict_gate_coverage",
+    "strict_gate_method"
+  ],
+  "properties": {
+    "genome_id": {"$ref": "#/$defs/stableId"},
+    "label": {"enum": ["virus", "host"]},
+    "split": {
+      "enum": ["reference_preflight", "random", "genome", "similarity", "temporal", "taxonomy"]
+    },
+    "reason": {"type": "string", "minLength": 1},
+    "duplicate_of": {"$ref": "#/$defs/optionalStableId"},
+    "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_accession_version": {"$ref": "#/$defs/optionalStableId"},
+    "release_date": {"$ref": "#/$defs/optionalDate"},
+    "nearest_train_genome_id": {"$ref": "#/$defs/optionalStableId"},
+    "max_train_similarity": {"$ref": "#/$defs/optionalFraction"},
+    "similarity_coverage": {"$ref": "#/$defs/optionalFraction"},
+    "similarity_method": {"type": "string"},
+    "strict_gate_train_genome_id": {"$ref": "#/$defs/optionalStableId"},
+    "strict_gate_similarity": {"$ref": "#/$defs/optionalFraction"},
+    "strict_gate_coverage": {"$ref": "#/$defs/optionalFraction"},
+    "strict_gate_method": {"type": "string"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"strict_gate_similarity": {"minLength": 1}},
+        "required": ["strict_gate_similarity"]
+      },
+      "then": {
+        "properties": {
+          "strict_gate_train_genome_id": {"minLength": 1},
+          "strict_gate_method": {"minLength": 1}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]{0,254}$"
+    },
+    "optionalStableId": {
+      "oneOf": [
+        {"const": ""},
+        {"$ref": "#/$defs/stableId"}
+      ]
+    },
+    "optionalDate": {
+      "oneOf": [
+        {"const": ""},
+        {"type": "string", "format": "date"}
+      ]
+    },
+    "optionalFraction": {
+      "type": "string",
+      "pattern": "^(?:|0(?:\\.[0-9]+)?|1(?:\\.0+)?|[1-9](?:\\.[0-9]+)?[eE]-[0-9]*[1-9][0-9]*)$"
+    }
+  }
+}

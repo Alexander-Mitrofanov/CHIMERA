@@ -1,0 +1,38 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@type": "SoftwareSourceCode",
+  "name": "CHIMERA",
+  "description": "Leakage-aware, reproducible virus-versus-host benchmark generator with random-fragment, genome-level, similarity-filtered, temporal, and taxonomic holdout protocols.",
+  "abstract": "CHIMERA generates deterministic synthetic DNA-fragment evaluation bundles with auditable truth, source assignments, exclusions, provenance, and checksums. It generates benchmark data and does not train or validate a classifier.",
+  "softwareVersion": "1.0.0",
+  "datePublished": "2026-08-08",
+  "codeRepository": "https://github.com/Alexander-Mitrofanov/CHIMERA",
+  "issueTracker": "https://github.com/Alexander-Mitrofanov/CHIMERA/issues",
+  "license": "https://spdx.org/licenses/MIT",
+  "author": [
+    {
+      "@type": "Organization",
+      "name": "CHIMERA contributors"
+    }
+  ],
+  "programmingLanguage": {
+    "@type": "ComputerLanguage",
+    "name": "Python",
+    "version": ">=3.11"
+  },
+  "runtimePlatform": "Python >=3.11",
+  "operatingSystem": "Cross-platform",
+  "applicationCategory": "Bioinformatics",
+  "applicationSubCategory": "Machine-learning benchmark generation",
+  "developmentStatus": "https://www.repostatus.org/#active",
+  "isAccessibleForFree": true,
+  "keywords": [
+    "bioinformatics",
+    "benchmark",
+    "metagenomics",
+    "machine learning",
+    "virus",
+    "data leakage",
+    "reproducibility"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chimera:schema:truth-row:1",
+  "title": "CHIMERA fragment truth row v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sequence_id",
+    "label",
+    "source_accession_version",
+    "source_genome_id",
+    "source_content_group_id",
+    "source_sequence_id",
+    "source_start",
+    "source_end",
+    "coordinate_system",
+    "strand",
+    "fragment_length",
+    "partition",
+    "view",
+    "similarity_bin",
+    "max_train_similarity",
+    "nearest_train_genome_id",
+    "release_date",
+    "synthetic"
+  ],
+  "properties": {
+    "sequence_id": {"type": "string", "pattern": "^frag-[0-9a-f]{32}$"},
+    "label": {"enum": ["virus", "host"]},
+    "source_accession_version": {"$ref": "#/$defs/optionalStableId"},
+    "source_genome_id": {"$ref": "#/$defs/stableId"},
+    "source_content_group_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "source_sequence_id": {"$ref": "#/$defs/stableId"},
+    "source_start": {"type": "integer", "minimum": 0},
+    "source_end": {"type": "integer", "minimum": 1},
+    "coordinate_system": {"enum": ["0-based-half-open", "0-based-half-open-circular"]},
+    "strand": {"enum": ["+", "-"]},
+    "fragment_length": {"type": "integer", "minimum": 1},
+    "partition": {"enum": ["train", "test", "excluded"]},
+    "view": {
+      "enum": [
+        "train",
+        "test",
+        "candidate_test",
+        "test_strata/high_similarity",
+        "test_strata/moderate_similarity",
+        "test_strata/low_similarity",
+        "test_strata/distant_detectable",
+        "test_strata/no_detectable_match"
+      ]
+    },
+    "similarity_bin": {
+      "enum": [
+        "",
+        "high_similarity",
+        "moderate_similarity",
+        "low_similarity",
+        "distant_detectable",
+        "no_detectable_match"
+      ]
+    },
+    "max_train_similarity": {"$ref": "#/$defs/optionalFraction"},
+    "nearest_train_genome_id": {"$ref": "#/$defs/optionalStableId"},
+    "release_date": {"$ref": "#/$defs/optionalDate"},
+    "synthetic": {"const": "true"}
+  },
+  "$defs": {
+    "stableId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]{0,254}$"
+    },
+    "optionalStableId": {
+      "oneOf": [
+        {"const": ""},
+        {"$ref": "#/$defs/stableId"}
+      ]
+    },
+    "optionalDate": {
+      "oneOf": [
+        {"const": ""},
+        {"type": "string", "format": "date"}
+      ]
+    },
+    "optionalFraction": {
+      "type": "string",
+      "pattern": "^(?:|0(?:\\.[0-9]+)?|1(?:\\.0+)?|[1-9](?:\\.[0-9]+)?[eE]-[0-9]*[1-9][0-9]*)$"
+    }
+  }
+}

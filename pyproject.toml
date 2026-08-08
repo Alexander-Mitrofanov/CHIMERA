@@ -1,0 +1,126 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chimera-metagenome-generator"
+version = "1.0.0"
+description = "Leakage-aware, reproducible virus-versus-host benchmark generator"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "CHIMERA contributors"}]
+keywords = [
+  "bioinformatics",
+  "benchmark",
+  "metagenomics",
+  "machine-learning",
+  "virus",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Typing :: Typed",
+]
+dependencies = [
+  "jsonschema>=4.23,<5",
+  "referencing>=0.35,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2.2,<2",
+  "hypothesis>=6.130,<7",
+  "mypy>=1.15,<2",
+  "pip-audit>=2.8,<3",
+  "pre-commit>=4,<5",
+  "pytest>=8.3,<10",
+  "pytest-cov>=6,<8",
+  "ruff>=0.11,<1",
+  "twine>=6,<7",
+  "types-jsonschema>=4.23,<5",
+]
+
+[project.scripts]
+chimera = "chimera.cli:main"
+metagenome-generator = "chimera.cli:legacy_main"
+
+[project.urls]
+Documentation = "https://github.com/Alexander-Mitrofanov/CHIMERA#readme"
+Issues = "https://github.com/Alexander-Mitrofanov/CHIMERA/issues"
+Repository = "https://github.com/Alexander-Mitrofanov/CHIMERA"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.dockerignore",
+  "/.github",
+  "/.pre-commit-config.yaml",
+  "/CHANGELOG.md",
+  "/CITATION.cff",
+  "/CODE_OF_CONDUCT.md",
+  "/CONTRIBUTING.md",
+  "/DATASHEET.md",
+  "/LICENSE",
+  "/Makefile",
+  "/README.md",
+  "/SECURITY.md",
+  "/codemeta.json",
+  "/containers",
+  "/docs",
+  "/environment.yml",
+  "/examples",
+  "/schemas",
+  "/src",
+  "/tests",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chimera"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"schemas" = "chimera/schemas"
+
+[tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers -ra"
+minversion = "8.0"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["chimera"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+files = ["src/chimera"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["B", "C4", "DTZ", "E", "F", "I", "N", "PERF", "PIE", "PTH", "RUF", "SIM", "UP", "W"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["DTZ001", "E402"]
+
+[tool.ruff.format]
+docstring-code-format = true
+quote-style = "double"
