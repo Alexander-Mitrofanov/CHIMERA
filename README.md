@@ -1,5 +1,8 @@
 # CHIMERA
 
+**C**onfigurable **H**ybrid **I**n-silico **M**etagenome **E**mulator for
+**R**ead **A**nalysis
+
 CHIMERA builds reproducible benchmark datasets for DNA classifiers that
 distinguish viral sequence from host or other non-viral sequence. It takes
 labeled reference genomes, samples exact fixed-length fragments, and writes
