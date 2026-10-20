@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import pytest
@@ -264,3 +264,72 @@ def test_manifest_dict_is_json_compatible(tmp_path):
     assert manifest["metadata_path"] == str((tmp_path / "metadata.tsv").resolve())
     assert manifest["similarity_table"] == str((tmp_path / "similarity.tsv").resolve())
     assert manifest["temporal_cutoff"] == "2020-01-02"
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [
+        ("schema_version", 1.9),
+        ("schema_version", True),
+        ("schema_version", None),
+        ("fragment_lengths", [31.9]),
+        ("fragment_lengths", [True]),
+        ("fragment_lengths", ["31"]),
+        ("seed", True),
+        ("seed", 1.5),
+        ("fragments_per_genome", 8.5),
+        ("auto_holdout_count", True),
+        ("auto_holdout_count", 1.5),
+        ("similarity_k", 21.0),
+        ("sketch_size", 100.5),
+        ("test_fraction", "0.2"),
+        ("test_fraction", None),
+        ("max_ambiguous_fraction", True),
+        ("max_train_similarity", True),
+        ("min_similarity_coverage", False),
+        ("overwrite", "false"),
+        ("overwrite", 1),
+        ("similarity_bands", {"low": False}),
+        ("holdout_taxa", [42]),
+        ("holdout_taxa", [""]),
+        ("taxonomy_rank", 42),
+        ("virus_paths", [None]),
+        ("host_paths", [""]),
+        ("metadata_path", ["a.tsv", "b.tsv"]),
+        ("similarity_table", ["a.tsv", "b.tsv"]),
+        ("duplicate_policy", "unknown"),
+        ("missing_metadata", "unknown"),
+    ],
+)
+def test_config_rejects_lossy_coercions_and_wrong_field_types(tmp_path, field_name, value):
+    with pytest.raises(ConfigurationError, match=field_name):
+        BenchmarkConfig.from_mapping(minimal_mapping() | {field_name: value}, base_dir=tmp_path)
+
+
+@pytest.mark.parametrize("value", [datetime(2020, 1, 1), "20200101", "2020-W01-1", 20200101])
+def test_temporal_cutoff_requires_a_calendar_date(tmp_path, value):
+    with pytest.raises(ConfigurationError, match=r"temporal_cutoff.*ISO date"):
+        BenchmarkConfig.from_mapping(
+            minimal_mapping() | {"temporal_cutoff": value}, base_dir=tmp_path
+        )
+
+
+@pytest.mark.parametrize(
+    ("updates", "field_name"),
+    [
+        ({"fragment_lengths": (True,)}, "fragment_lengths"),
+        ({"seed": False}, "seed"),
+        ({"overwrite": "false"}, "overwrite"),
+        ({"test_fraction": "0.2"}, "test_fraction"),
+        ({"duplicate_policy": "unknown"}, "duplicate_policy"),
+        ({"missing_metadata": "unknown"}, "missing_metadata"),
+    ],
+)
+def test_direct_config_enforces_the_same_field_types(tmp_path, updates, field_name):
+    with pytest.raises(ConfigurationError, match=field_name):
+        BenchmarkConfig(
+            virus_paths=(tmp_path / "virus.fna",),
+            host_paths=(tmp_path / "host.fna",),
+            output_dir=tmp_path / "bundle",
+            **updates,
+        )

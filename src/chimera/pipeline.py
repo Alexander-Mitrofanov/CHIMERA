@@ -235,6 +235,8 @@ def _atomic_bundle_directory(target: Path, *, overwrite: bool) -> Iterator[Path]
         write_text(staging / ".chimera-bundle", f"{BUNDLE_SCHEMA}\n")
         yield staging
         if target.exists():
+            if not overwrite:
+                raise FileExistsError(f"Output directory already exists: {target}; use --force")
             _require_valid_existing_bundle(target)
             backup = target.with_name(f".{target.name}.backup-{os.getpid()}")
             if backup.exists():

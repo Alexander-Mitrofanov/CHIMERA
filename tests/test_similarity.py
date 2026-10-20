@@ -336,3 +336,48 @@ def test_similarity_table_rejects_malformed_rows(tmp_path, payload, message):
     path.write_text(payload, encoding="utf-8")
     with pytest.raises(InputError, match=message):
         read_similarity_table(path, query_ids=["q"], reference_ids=["r"])
+
+
+@pytest.mark.parametrize("sketch_size", [3, 100])
+def test_circular_sketches_are_invariant_to_origin_and_strand(sketch_size):
+    sequence = "AACGTTGCACTGACCA"
+
+    def sketch(text):
+        source = Genome("circle", Label.VIRUS, (Contig("c", text, topology="circular"),))
+        return sketch_genome(source, k=5, sketch_size=sketch_size)
+
+    expected = sketch(sequence)
+    for offset in range(len(sequence)):
+        rotated = sequence[offset:] + sequence[:offset]
+        for oriented in (rotated, reverse_complement(rotated)):
+            assert sketch(oriented) == expected
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        (
+            TABLE_HEADER.rstrip("\n") + "\tsimilarity\n"
+            "q\tr\t0.99\t0.9\taligned_fraction_shorter\tskani-0.3.1\t0.5\n",
+            "duplicate column",
+        ),
+        (
+            TABLE_HEADER + "q\tr\t0.5\t0.9\taligned_fraction_shorter\tskani-0.3.1\textra\n",
+            "more fields",
+        ),
+        (TABLE_HEADER + "q\tr\t0.5\t0.9\taligned_fraction_shorter\n", "fewer fields"),
+        (TABLE_HEADER + '"unterminated\n', "unexpected end"),
+    ],
+)
+def test_similarity_table_rejects_ambiguous_structure(tmp_path, payload, message):
+    path = tmp_path / "similarity.tsv"
+    path.write_text(payload, encoding="utf-8")
+    with pytest.raises(InputError, match=message):
+        read_similarity_table(path, query_ids=["q"], reference_ids=["r"])
+
+
+def test_similarity_table_wraps_utf8_errors(tmp_path):
+    path = tmp_path / "similarity.tsv"
+    path.write_bytes(TABLE_HEADER.encode("utf-8") + b"\xff\n")
+    with pytest.raises(InputError, match=r"Cannot read similarity table.*similarity.tsv"):
+        read_similarity_table(path, query_ids=["q"], reference_ids=["r"])

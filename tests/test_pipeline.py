@@ -5,6 +5,7 @@ import gzip
 import json
 import os
 import random
+import shutil
 import stat
 import subprocess
 from datetime import date
@@ -176,6 +177,25 @@ def test_force_rerun_is_byte_reproducible_except_execution_record(tmp_path):
     assert (
         config.output_dir / SplitKind.GENOME.directory_name / "train.fasta.gz"
     ).read_bytes() == first_train
+
+
+def test_atomic_bundle_preserves_a_concurrent_publisher_without_force(tmp_path):
+    config = suite_config(tmp_path, output_name="winner")
+    generate_benchmark(config)
+    target = tmp_path / "race"
+    expected = (config.output_dir / "checksums.sha256").read_bytes()
+
+    with (
+        pytest.raises(FileExistsError, match="already exists"),
+        _atomic_bundle_directory(target, overwrite=False) as staging,
+    ):
+        (staging / "loser.txt").write_text("must not replace the winner", encoding="utf-8")
+        shutil.copytree(config.output_dir, target)
+
+    assert (target / "checksums.sha256").read_bytes() == expected
+    assert not (target / "loser.txt").exists()
+    assert not list(tmp_path.glob(".race.staging-*"))
+    assert not list(tmp_path.glob(".race.backup-*"))
 
 
 def test_force_refuses_to_delete_an_unrecognized_directory(tmp_path):

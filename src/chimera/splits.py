@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -339,7 +339,7 @@ def _prepare_groups(genomes: Sequence[Genome]) -> tuple[_GenomeGroup, ...]:
         raise TypeError("genomes must contain only Genome objects")
     genome_ids = [genome.genome_id for genome in source]
     duplicated_ids = sorted(
-        genome_id for genome_id in set(genome_ids) if genome_ids.count(genome_id) > 1
+        genome_id for genome_id, count in Counter(genome_ids).items() if count > 1
     )
     if duplicated_ids:
         raise InputError("Duplicate genome_id values: " + ", ".join(duplicated_ids))
@@ -1065,7 +1065,7 @@ def similarity_filtered_holdout(
 
 def _validate_partition(plan: SplitPlan) -> None:
     ids = [assignment.genome_id for assignment in plan.assignments]
-    duplicates = sorted(genome_id for genome_id in set(ids) if ids.count(genome_id) > 1)
+    duplicates = sorted(genome_id for genome_id, count in Counter(ids).items() if count > 1)
     if duplicates:
         raise IntegrityError("A genome has multiple split assignments: " + ", ".join(duplicates))
     if plan.train_ids & plan.test_ids or plan.train_ids & plan.excluded_ids:

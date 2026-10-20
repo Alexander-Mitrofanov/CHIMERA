@@ -14,6 +14,7 @@ import gzip
 import io
 import os
 import tempfile
+import zlib
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Final, TypeAlias
@@ -214,7 +215,7 @@ def _iter_fasta_file(
             max(line_number, 1),
             f"FASTA is not valid UTF-8 text: {error}",
         ) from error
-    except OSError as error:
+    except (OSError, EOFError, zlib.error) as error:
         raise FastaFormatError(
             path,
             max(line_number, 1),

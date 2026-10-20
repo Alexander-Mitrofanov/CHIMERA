@@ -148,6 +148,10 @@ are preserved as JSON in `sequences.tsv` `metadata_extra`; a value is promoted
 to `references.tsv` `metadata_extra` only when that key occurs with the same
 value on every segment of the grouped genome.
 
+Every row must contain exactly as many fields as the header. Use an explicit
+empty field for missing optional metadata; missing trailing fields, extra
+fields, and malformed quoting are errors.
+
 `release_date` is not collection date. NCBI describes Virus `releaseDate` as
 the first public release; record collection dates separately when they matter.
 Pin `accession.version`, because sequence updates increment the version.
@@ -192,6 +196,10 @@ similarity_bands = { high = 0.90, moderate = 0.70, low = 0.30 }
 
 Unknown keys and unsupported `schema_version` values fail. Hyphenated keys are
 normalized to underscores, but the underscore form above is the stable style.
+Integer settings require integers, and `overwrite` requires a TOML boolean
+(`true` or `false`). Numeric strings, fractional integer settings, boolean
+numbers, and multiple paths for `metadata_path` or `similarity_table` are
+rejected. Cutoff dates use calendar `YYYY-MM-DD` form.
 
 ### Configuration reference
 
@@ -304,6 +312,9 @@ across contig boundaries, retains a stable bottom-k sketch, estimates Jaccard,
 and converts it to a Mash-style identity estimate. It is exact only when the
 sketch retains every unique canonical k-mer. Ambiguity-bearing k-mers are
 ignored. No shared k-mer is represented as no detectable match.
+Circular contigs include origin-spanning k-mers, making their sketches
+invariant to origin rotation and reverse complementation. A contig shorter
+than k contributes no k-mers.
 
 This value is not alignment-derived ANI and is not a validated universal viral
 taxonomic threshold. A small or poorly chosen k, limited sketch, fragmented

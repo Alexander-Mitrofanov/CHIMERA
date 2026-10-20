@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import re
+import zlib
 from collections import Counter
 from collections.abc import Mapping
 from contextlib import suppress
@@ -278,7 +279,7 @@ def _open_text(path: Path) -> TextIO:
 def _read_tsv(path: Path, required: tuple[str, ...]) -> tuple[dict[str, str], ...]:
     try:
         with _open_text(path) as handle:
-            reader = csv.DictReader(handle, delimiter="\t")
+            reader = csv.DictReader(handle, delimiter="\t", strict=True)
             header = reader.fieldnames or []
             if len(header) != len(set(header)):
                 _fail(f"{path}: TSV header contains duplicate columns")
@@ -289,11 +290,13 @@ def _read_tsv(path: Path, required: tuple[str, ...]) -> tuple[dict[str, str], ..
             for line_number, row in enumerate(reader, start=2):
                 if None in row:
                     _fail(f"{path}:{line_number}: row has more fields than the header")
+                if any(value is None for value in row.values()):
+                    _fail(f"{path}:{line_number}: row has fewer fields than the header")
                 rows.append({key: (value or "").strip() for key, value in row.items()})
             return tuple(rows)
     except IntegrityError:
         raise
-    except (OSError, UnicodeError, csv.Error) as error:
+    except (OSError, UnicodeError, csv.Error, EOFError, zlib.error) as error:
         _fail(f"Cannot read TSV {path}: {error}")
 
 
@@ -627,6 +630,9 @@ def _reconstruct_genomes(
 ) -> tuple[Genome, ...]:
     """Reconstruct the exact retained genome catalog from checked bundle data."""
 
+    sources_by_genome: dict[str, list[_SourceSequence]] = {}
+    for source in sorted(sources.values(), key=lambda item: item.sequence_id):
+        sources_by_genome.setdefault(source.genome_id, []).append(source)
     genomes: list[Genome] = []
     for genome_id, reference in sorted(references.items()):
         contigs = tuple(
@@ -641,8 +647,7 @@ def _reconstruct_genomes(
                 taxonomy=tuple(sorted(source.taxonomy.items())),
                 metadata_extra=tuple(sorted(source.metadata_extra.items())),
             )
-            for source in sorted(sources.values(), key=lambda item: item.sequence_id)
-            if source.genome_id == genome_id
+            for source in sources_by_genome.get(genome_id, ())
         )
         genomes.append(
             Genome(
@@ -744,7 +749,7 @@ def _read_partition(
             try:
                 with _open_text(fasta_path) as handle:
                     genuinely_empty = not handle.read().strip()
-            except (OSError, UnicodeError):
+            except (OSError, UnicodeError, EOFError, zlib.error):
                 genuinely_empty = False
         if allow_empty and genuinely_empty:
             contigs = ()

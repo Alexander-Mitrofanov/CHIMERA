@@ -172,7 +172,9 @@ Candidate similarity strata are `high_similarity`, `moderate_similarity`,
 candidate sets must be reported separately.
 
 The built-in canonical k-mer MinHash reports a Mash-style identity estimate,
-not alignment ANI. Dataset creators should archive a versioned external
+not alignment ANI. Circular-contig sketches include origin-spanning k-mers;
+record the software-content receipt when comparing runs made with different
+implementations. Dataset creators should archive a versioned external
 alignment-derived all-candidate-vs-train table for publication analyses where
 ANI/coverage is the intended construct. Record tool/version, inputs, commands,
 coverage definition, no-match policy, and thresholds.

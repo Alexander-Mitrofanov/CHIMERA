@@ -201,6 +201,8 @@ def _opaque_fragment_id(
     seed: int,
     genome: Genome,
     contig: Contig,
+    genome_digest: str,
+    contig_digest: str,
     fragment_length: int,
     local_index: int,
     start: int,
@@ -210,9 +212,9 @@ def _opaque_fragment_id(
         seed,
         "fragment-id-v1",
         genome.genome_id,
-        genome.digest,
+        genome_digest,
         contig.sequence_id,
-        contig.digest,
+        contig_digest,
         fragment_length,
         local_index,
         start,
@@ -302,6 +304,10 @@ def generate_fragments(
     content_labels: dict[str, tuple[str, str]] = {}
     ordinal = 0
     for genome in normalized_genomes:
+        # Content is immutable; hashing entire sources per fragment makes work
+        # scale with genome length times the number of requested fragments.
+        genome_digest = genome.digest
+        contig_digests = {contig.sequence_id: contig.digest for contig in genome.contigs}
         counts = _balanced_length_counts(
             genome=genome,
             lengths=lengths,
@@ -316,7 +322,7 @@ def generate_fragments(
                     seed,
                     "fragment-coordinates-v1",
                     genome.genome_id,
-                    genome.digest,
+                    genome_digest,
                     fragment_length,
                 )
             )
@@ -325,7 +331,7 @@ def generate_fragments(
                     seed,
                     "fragment-strands-v1",
                     genome.genome_id,
-                    genome.digest,
+                    genome_digest,
                     fragment_length,
                 )
             )
@@ -364,6 +370,8 @@ def generate_fragments(
                     seed=seed,
                     genome=genome,
                     contig=contig,
+                    genome_digest=genome_digest,
+                    contig_digest=contig_digests[contig.sequence_id],
                     fragment_length=fragment_length,
                     local_index=local_index,
                     start=start,

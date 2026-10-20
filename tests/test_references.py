@@ -16,6 +16,28 @@ from chimera.references import (
 )
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "sequence_id\tgenome_id\na\ta\textra\n",
+        "sequence_id\tgenome_id\na\n",
+        'sequence_id\tgenome_id\n"unterminated\ta\n',
+    ],
+)
+def test_metadata_rejects_ragged_and_malformed_rows(tmp_path, payload):
+    path = tmp_path / "metadata.tsv"
+    path.write_text(payload, encoding="utf-8")
+    with pytest.raises(InputError, match=r"metadata.tsv.*(fields|unexpected end)"):
+        read_metadata(path)
+
+
+def test_metadata_wraps_utf8_errors(tmp_path):
+    path = tmp_path / "metadata.tsv"
+    path.write_bytes(b"sequence_id\n\xff\n")
+    with pytest.raises(InputError, match=r"Cannot read metadata table.*metadata.tsv"):
+        read_metadata(path)
+
+
 def write_fasta(path: Path, records: dict[str, str]) -> Path:
     path.write_text(
         "".join(f">{record_id}\n{sequence}\n" for record_id, sequence in records.items()),

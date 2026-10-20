@@ -333,6 +333,7 @@ def truth_rows(
     """Build one unambiguous truth row per emitted fragment."""
 
     details = assignment_details or {}
+    genome_digests: dict[str, str] = {}
     contigs = {
         (genome.genome_id, contig.sequence_id): contig
         for genome in genomes.values()
@@ -340,7 +341,8 @@ def truth_rows(
     }
     rows: list[dict[str, object]] = []
     for fragment in fragments:
-        genome = genomes[fragment.genome_id]
+        if fragment.genome_id not in genome_digests:
+            genome_digests[fragment.genome_id] = genomes[fragment.genome_id].digest
         source_contig = contigs[(fragment.genome_id, fragment.sequence_id)]
         assignment = details.get(fragment.genome_id, {})
         if isinstance(partition, str):
@@ -369,7 +371,7 @@ def truth_rows(
                 "label": fragment.label.value,
                 "source_accession_version": source_contig.accession_version or "",
                 "source_genome_id": fragment.genome_id,
-                "source_content_group_id": f"sha256:{genome.digest}",
+                "source_content_group_id": f"sha256:{genome_digests[fragment.genome_id]}",
                 "source_sequence_id": fragment.sequence_id,
                 "source_start": fragment.start,
                 "source_end": fragment.end,

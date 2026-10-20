@@ -23,6 +23,30 @@ def write_inputs(tmp_path: Path) -> tuple[Path, Path]:
     return virus, host
 
 
+@pytest.mark.parametrize(
+    ("setting", "field_name"),
+    [
+        ("fragment_lengths = [31.9]", "fragment_lengths"),
+        ("schema_version = 1.9", "schema_version"),
+        ('test_fraction = "0.2"', "test_fraction"),
+        ('overwrite = "false"', "overwrite"),
+        ('metadata_path = ["a.tsv", "b.tsv"]', "metadata_path"),
+    ],
+)
+def test_malformed_toml_returns_an_input_error_before_opening_references(
+    tmp_path, caplog, setting, field_name
+):
+    path = tmp_path / "invalid.toml"
+    path.write_text(
+        '[benchmark]\nvirus_paths = ["v.fna"]\nhost_paths = ["h.fna"]\n' + setting + "\n",
+        encoding="utf-8",
+    )
+
+    assert main(["generate", "--config", str(path)]) == 2
+    assert field_name in caplog.text
+    assert "does not exist" not in caplog.text
+
+
 def test_root_help_exposes_recommended_one_click_command(capsys):
     with pytest.raises(SystemExit) as raised:
         build_parser().parse_args(["--help"])

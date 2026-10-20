@@ -11,6 +11,8 @@ from dataclasses import FrozenInstanceError, fields
 from datetime import date, datetime
 from pathlib import Path
 
+import pytest
+
 from chimera.fasta import (
     DuplicateSequenceIdError,
     FastaDiscoveryError,
@@ -33,6 +35,20 @@ from chimera.models import (
     reverse_complement,
     validate_stable_id,
 )
+
+
+@pytest.mark.parametrize("damage", ["truncated", "invalid_deflate"])
+def test_corrupt_gzip_has_a_contextual_fasta_error(tmp_path, damage):
+    path = tmp_path / "corrupt.fna.gz"
+    compressed = gzip.compress(b">fictional\nACGTACGT\n", mtime=0)
+    if damage == "truncated":
+        compressed = compressed[:-5]
+    else:
+        compressed = compressed[:10] + b"\x07" + compressed[11:]
+    path.write_bytes(compressed)
+
+    with pytest.raises(FastaFormatError, match=r"corrupt.fna.gz:\d+: could not read FASTA"):
+        read_fasta(path)
 
 
 class ModelTests(unittest.TestCase):

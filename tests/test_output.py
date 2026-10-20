@@ -53,6 +53,27 @@ def fragments() -> tuple[Fragment, ...]:
     )
 
 
+def test_truth_serialization_hashes_only_used_genomes_once(monkeypatch):
+    source = source_genome()
+    unused = Genome("unused", Label.HOST, (Contig("unused.1", "TTTTCCCC"),))
+    sources = {source.genome_id: source, unused.genome_id: unused}
+    expected = f"sha256:{source.digest}"
+    original_digest = Genome.digest.fget
+    calls = []
+
+    def counted_digest(genome):
+        calls.append(genome.genome_id)
+        return original_digest(genome)
+
+    monkeypatch.setattr(Genome, "digest", property(counted_digest))
+
+    assert truth_rows([], partition="train", genomes=sources) == []
+    assert calls == []
+    rows = truth_rows(fragments(), partition="train", genomes=sources)
+    assert calls == [source.genome_id]
+    assert all(row["source_content_group_id"] == expected for row in rows)
+
+
 def test_json_and_text_writers_normalize_output(tmp_path):
     write_json(tmp_path / "value.json", {"z": 1, "a": 2})
     write_text(tmp_path / "value.txt", "a\r\nb")
