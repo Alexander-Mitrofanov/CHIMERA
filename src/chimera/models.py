@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
@@ -416,7 +417,7 @@ class Genome:
             raise TypeError("contigs must contain only Contig objects")
         sequence_ids = [contig.sequence_id for contig in immutable_contigs]
         duplicate_ids = sorted(
-            sequence_id for sequence_id in set(sequence_ids) if sequence_ids.count(sequence_id) > 1
+            sequence_id for sequence_id, count in Counter(sequence_ids).items() if count > 1
         )
         if duplicate_ids:
             raise ValueError(

@@ -118,91 +118,103 @@ def read_metadata(path: Path) -> dict[str, MetadataRecord]:
     """
 
     delimiter = "," if path.suffix.lower() == ".csv" else "\t"
+    records: dict[str, MetadataRecord] = {}
     try:
         handle = path.open(newline="", encoding="utf-8-sig")
-    except OSError as exc:
+        with handle:
+            reader = csv.DictReader(handle, delimiter=delimiter, strict=True)
+            header = _normalized_header(reader.fieldnames or ())
+            if "sequence_id" not in header:
+                raise InputError(f"Metadata {path} is missing required column 'sequence_id'")
+            date_columns = [
+                name for name in ("release_date", "deposited_at", "create_date") if name in header
+            ]
+            legacy_date_columns = [
+                name for name in ("deposited_at", "create_date") if name in header
+            ]
+            if legacy_date_columns:
+                raise InputError(
+                    f"Metadata {path} uses ambiguous legacy date column(s) {legacy_date_columns}; "
+                    "provide a verified first-public date in release_date"
+                )
+            if len(date_columns) > 1:
+                raise InputError(
+                    f"Metadata {path} has ambiguous date columns {date_columns}; use only release_date"
+                )
+            for raw_row in reader:
+                line_number = reader.line_num
+                if None in raw_row:
+                    raise InputError(f"{path}:{line_number}: row has more fields than the header")
+                if any(value is None for value in raw_row.values()):
+                    raise InputError(f"{path}:{line_number}: row has fewer fields than the header")
+                row = {
+                    canonical: (raw_row.get(original) or "").strip()
+                    for canonical, original in header.items()
+                }
+                sequence_id = row["sequence_id"]
+                if not sequence_id:
+                    raise InputError(f"{path}:{line_number}: sequence_id must not be empty")
+                if sequence_id in records:
+                    raise InputError(
+                        f"{path}:{line_number}: duplicate metadata sequence_id {sequence_id!r}"
+                    )
+                genome_id = row.get("genome_id") or sequence_id
+                raw_label = row.get("label", "")
+                try:
+                    label = Label(raw_label.lower()) if raw_label else None
+                except ValueError as exc:
+                    raise InputError(
+                        f"{path}:{line_number}: label must be 'virus' or 'host', got {raw_label!r}"
+                    ) from exc
+                date_column = date_columns[0] if date_columns else ""
+                release_date = _parse_release_date(
+                    row.get(date_column, ""), path=path, line_number=line_number
+                )
+                topology_value = (row.get("topology") or "linear").lower()
+                if topology_value == "linear":
+                    topology: Topology = "linear"
+                elif topology_value == "circular":
+                    topology = "circular"
+                else:
+                    raise InputError(
+                        f"{path}:{line_number}: topology must be 'linear' or 'circular'"
+                    )
+                taxonomy = tuple(
+                    (rank, row.get(rank) or row.get(f"tax_{rank}", ""))
+                    for rank in TAXONOMY_RANKS
+                    if row.get(rank) or row.get(f"tax_{rank}")
+                )
+                consumed = {
+                    "sequence_id",
+                    "genome_id",
+                    "label",
+                    "accession_version",
+                    "release_date",
+                    "deposited_at",
+                    "create_date",
+                    "topology",
+                    *TAXONOMY_RANKS,
+                    *(f"tax_{rank}" for rank in TAXONOMY_RANKS),
+                }
+                extra = tuple(
+                    sorted((key, value) for key, value in row.items() if key not in consumed)
+                )
+                try:
+                    records[sequence_id] = MetadataRecord(
+                        sequence_id=sequence_id,
+                        genome_id=genome_id,
+                        label=label,
+                        accession_version=row.get("accession_version") or None,
+                        release_date=release_date,
+                        topology=topology,
+                        taxonomy=taxonomy,
+                        extra=extra,
+                    )
+                except (TypeError, ValueError) as exc:
+                    raise InputError(f"{path}:{line_number}: {exc}") from exc
+    except (OSError, UnicodeError, csv.Error) as exc:
         raise InputError(f"Cannot read metadata table {path}: {exc}") from exc
-    records: dict[str, MetadataRecord] = {}
-    with handle:
-        reader = csv.DictReader(handle, delimiter=delimiter)
-        header = _normalized_header(reader.fieldnames or ())
-        if "sequence_id" not in header:
-            raise InputError(f"Metadata {path} is missing required column 'sequence_id'")
-        date_columns = [
-            name for name in ("release_date", "deposited_at", "create_date") if name in header
-        ]
-        legacy_date_columns = [name for name in ("deposited_at", "create_date") if name in header]
-        if legacy_date_columns:
-            raise InputError(
-                f"Metadata {path} uses ambiguous legacy date column(s) {legacy_date_columns}; "
-                "provide a verified first-public date in release_date"
-            )
-        if len(date_columns) > 1:
-            raise InputError(
-                f"Metadata {path} has ambiguous date columns {date_columns}; use only release_date"
-            )
-        for line_number, raw_row in enumerate(reader, start=2):
-            row = {
-                canonical: (raw_row.get(original) or "").strip()
-                for canonical, original in header.items()
-            }
-            sequence_id = row["sequence_id"]
-            if not sequence_id:
-                raise InputError(f"{path}:{line_number}: sequence_id must not be empty")
-            if sequence_id in records:
-                raise InputError(
-                    f"{path}:{line_number}: duplicate metadata sequence_id {sequence_id!r}"
-                )
-            genome_id = row.get("genome_id") or sequence_id
-            raw_label = row.get("label", "")
-            try:
-                label = Label(raw_label.lower()) if raw_label else None
-            except ValueError as exc:
-                raise InputError(
-                    f"{path}:{line_number}: label must be 'virus' or 'host', got {raw_label!r}"
-                ) from exc
-            date_column = date_columns[0] if date_columns else ""
-            release_date = _parse_release_date(
-                row.get(date_column, ""), path=path, line_number=line_number
-            )
-            topology_value = (row.get("topology") or "linear").lower()
-            if topology_value == "linear":
-                topology: Topology = "linear"
-            elif topology_value == "circular":
-                topology = "circular"
-            else:
-                raise InputError(f"{path}:{line_number}: topology must be 'linear' or 'circular'")
-            taxonomy = tuple(
-                (rank, row.get(rank) or row.get(f"tax_{rank}", ""))
-                for rank in TAXONOMY_RANKS
-                if row.get(rank) or row.get(f"tax_{rank}")
-            )
-            consumed = {
-                "sequence_id",
-                "genome_id",
-                "label",
-                "accession_version",
-                "release_date",
-                "deposited_at",
-                "create_date",
-                "topology",
-                *TAXONOMY_RANKS,
-                *(f"tax_{rank}" for rank in TAXONOMY_RANKS),
-            }
-            extra = tuple(sorted((key, value) for key, value in row.items() if key not in consumed))
-            try:
-                records[sequence_id] = MetadataRecord(
-                    sequence_id=sequence_id,
-                    genome_id=genome_id,
-                    label=label,
-                    accession_version=row.get("accession_version") or None,
-                    release_date=release_date,
-                    topology=topology,
-                    taxonomy=taxonomy,
-                    extra=extra,
-                )
-            except (TypeError, ValueError) as exc:
-                raise InputError(f"{path}:{line_number}: {exc}") from exc
+
     if not records:
         raise InputError(f"Metadata table {path} has no data rows")
     return records

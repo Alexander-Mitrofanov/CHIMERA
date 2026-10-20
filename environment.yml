@@ -16,7 +16,7 @@ dependencies:
   - pytest>=8.3,<10
   - pytest-cov>=6,<8
   - ruff>=0.11,<1
-  - twine>=6,<7
+  - twine>=7,<8
   - pip:
       # Install only CHIMERA through pip; development tools above remain
       # managed consistently by Conda; this bounded file is not a lockfile.

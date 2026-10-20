@@ -31,6 +31,30 @@ from chimera.schema_resources import SchemaValidationError
 from chimera.validation import ValidationReport, validate_bundle
 
 
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "source-sequences.fasta.gz",
+        "genome_holdout/train.fasta.gz",
+        "genome_holdout/train.truth.tsv.gz",
+        "similarity_filtered/test_strata/high_similarity.fasta.gz",
+    ],
+)
+@pytest.mark.parametrize("damage", ["truncated", "invalid_deflate"])
+def test_corrupt_gzip_is_an_integrity_error_even_with_updated_checksums(bundle, relative, damage):
+    path = bundle / relative
+    compressed = path.read_bytes()
+    if damage == "truncated":
+        compressed = compressed[:-5]
+    else:
+        compressed = compressed[:10] + b"\x07" + compressed[11:]
+    path.write_bytes(compressed)
+    write_checksums(bundle)
+
+    with pytest.raises(IntegrityError, match=path.name):
+        validate_bundle(bundle)
+
+
 def _dna(seed: int, length: int = 240) -> str:
     generator = random.Random(seed)
     return "".join(generator.choice("ACGT") for _ in range(length))
@@ -979,6 +1003,8 @@ def test_validation_tsv_reader_rejects_structural_corruption(tmp_path: Path) -> 
         ("required\trequired\nvalue\tvalue\n", "duplicate columns"),
         ("other\nvalue\n", "missing required column"),
         ("required\nvalue\textra\n", "more fields than the header"),
+        ("required\toptional\nvalue\n", "fewer fields than the header"),
+        ('required\n"unterminated\n', "unexpected end"),
     )
     for index, (content, message) in enumerate(cases):
         path = tmp_path / f"case-{index}.tsv"

@@ -12,13 +12,12 @@ import tempfile
 from collections import Counter
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
-from datetime import UTC, date, datetime
-from enum import Enum
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from . import __version__
-from .config import BenchmarkConfig, SimilarityBands, SplitKind
+from .config import BenchmarkConfig, SplitKind
 from .errors import ConfigurationError, IntegrityError
 from .fasta import discover_fasta_files, write_fasta
 from .fragments import derive_seed, generate_fragments, split_fragments_random
@@ -27,9 +26,12 @@ from .output import (
     REFERENCE_COLUMNS,
     SEQUENCE_COLUMNS,
     TRUTH_COLUMNS,
+    ensure_output_directory,
     fragment_statistics,
+    json_ready,
     reference_rows,
     sequence_rows,
+    sha256_file,
     truth_rows,
     write_checksums,
     write_json,
@@ -111,24 +113,6 @@ class _PreparedBenchmark:
     plans: Mapping[SplitKind, SplitPlan]
 
 
-def _jsonable(value: object) -> object:
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, (date, datetime)):
-        return value.isoformat()
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, Enum):
-        return value.value
-    if isinstance(value, SimilarityBands):
-        return asdict(value)
-    if isinstance(value, Mapping):
-        return {str(key): _jsonable(item) for key, item in sorted(value.items())}
-    if isinstance(value, (tuple, list, set, frozenset)):
-        return [_jsonable(item) for item in value]
-    raise TypeError(f"Cannot serialize provenance value of type {type(value).__name__}")
-
-
 def _safe_target(target: Path) -> Path:
     resolved = target.expanduser().resolve()
     home = Path.home().resolve()
@@ -151,31 +135,6 @@ def _safe_target(target: Path) -> Path:
 _PRIVATE_DIRECTORY_MODE = 0o700
 _PUBLISHED_DIRECTORY_MODE = 0o755
 _PUBLISHED_FILE_MODE = 0o644
-
-
-def _ensure_public_directory(path: Path) -> None:
-    """Create only missing directory components and publish them as ``0755``."""
-
-    missing: list[Path] = []
-    cursor = path
-    while not cursor.exists():
-        missing.append(cursor)
-        parent = cursor.parent
-        if parent == cursor:
-            break
-        cursor = parent
-    if cursor.exists() and not cursor.is_dir():
-        raise ConfigurationError(f"Output parent is not a directory: {cursor}")
-    for directory in reversed(missing):
-        try:
-            directory.mkdir(mode=_PRIVATE_DIRECTORY_MODE)
-        except FileExistsError as error:
-            if not directory.is_dir():
-                raise ConfigurationError(
-                    f"Output parent is not a directory: {directory}"
-                ) from error
-        else:
-            directory.chmod(_PUBLISHED_DIRECTORY_MODE)
 
 
 def _publish_bundle_permissions(staging: Path) -> None:
@@ -222,7 +181,10 @@ def _atomic_bundle_directory(target: Path, *, overwrite: bool) -> Iterator[Path]
     """Build beside the destination, then atomically swap a recognized bundle."""
 
     target = _safe_target(target)
-    _ensure_public_directory(target.parent)
+    try:
+        ensure_output_directory(target.parent)
+    except NotADirectoryError as error:
+        raise ConfigurationError(str(error)) from error
     if target.exists():
         if not overwrite:
             raise FileExistsError(f"Output directory already exists: {target}; use --force")
@@ -235,6 +197,8 @@ def _atomic_bundle_directory(target: Path, *, overwrite: bool) -> Iterator[Path]
         write_text(staging / ".chimera-bundle", f"{BUNDLE_SCHEMA}\n")
         yield staging
         if target.exists():
+            if not overwrite:
+                raise FileExistsError(f"Output directory already exists: {target}; use --force")
             _require_valid_existing_bundle(target)
             backup = target.with_name(f".{target.name}.backup-{os.getpid()}")
             if backup.exists():
@@ -319,6 +283,21 @@ def _semantic_order(
     )
 
 
+def _similarity_fields(assignment: SplitAssignment) -> dict[str, object]:
+    """Serialize the evidence shared by assignment and exclusion tables."""
+
+    return {
+        "nearest_train_genome_id": assignment.nearest_train_genome_id or "",
+        "max_train_similarity": format_similarity_value(assignment.max_train_similarity),
+        "similarity_coverage": format_similarity_value(assignment.similarity_coverage),
+        "similarity_method": assignment.similarity_method or "",
+        "strict_gate_train_genome_id": assignment.strict_gate_train_genome_id or "",
+        "strict_gate_similarity": format_similarity_value(assignment.strict_gate_similarity),
+        "strict_gate_coverage": format_similarity_value(assignment.strict_gate_coverage),
+        "strict_gate_method": assignment.strict_gate_method or "",
+    }
+
+
 def _assignment_row(assignment: SplitAssignment) -> dict[str, object]:
     return {
         "genome_id": assignment.genome_id,
@@ -332,30 +311,23 @@ def _assignment_row(assignment: SplitAssignment) -> dict[str, object]:
         "release_date": assignment.release_date.isoformat() if assignment.release_date else "",
         "taxon": assignment.taxon or "",
         "similarity_bin": assignment.similarity_bin or "",
-        "nearest_train_genome_id": assignment.nearest_train_genome_id or "",
-        "max_train_similarity": (
-            ""
-            if assignment.max_train_similarity is None
-            else format_similarity_value(assignment.max_train_similarity)
-        ),
-        "similarity_coverage": (
-            ""
-            if assignment.similarity_coverage is None
-            else format_similarity_value(assignment.similarity_coverage)
-        ),
-        "similarity_method": assignment.similarity_method or "",
-        "strict_gate_train_genome_id": assignment.strict_gate_train_genome_id or "",
-        "strict_gate_similarity": (
-            ""
-            if assignment.strict_gate_similarity is None
-            else format_similarity_value(assignment.strict_gate_similarity)
-        ),
-        "strict_gate_coverage": (
-            ""
-            if assignment.strict_gate_coverage is None
-            else format_similarity_value(assignment.strict_gate_coverage)
-        ),
-        "strict_gate_method": assignment.strict_gate_method or "",
+        **_similarity_fields(assignment),
+    }
+
+
+def _exclusion_row(
+    assignment: SplitAssignment, genome: Genome, kind: SplitKind
+) -> dict[str, object]:
+    return {
+        "genome_id": assignment.genome_id,
+        "label": assignment.label.value,
+        "split": kind.value,
+        "reason": assignment.reason,
+        "duplicate_of": "",
+        "source_sha256": genome.digest,
+        "source_accession_version": genome.metadata.accession_version or "",
+        "release_date": assignment.release_date.isoformat() if assignment.release_date else "",
+        **_similarity_fields(assignment),
     }
 
 
@@ -591,51 +563,11 @@ def _write_split(
     )
     test_truth = _write_partition(split_dir, "test", test, genomes=genomes_by_id, details=details)
 
-    exclusions: list[dict[str, object]] = []
-    if plan is not None:
-        exclusions.extend(
-            {
-                "genome_id": assignment.genome_id,
-                "label": assignment.label.value,
-                "split": kind.value,
-                "reason": assignment.reason,
-                "duplicate_of": "",
-                "source_sha256": genomes_by_id[assignment.genome_id].digest,
-                "source_accession_version": (
-                    genomes_by_id[assignment.genome_id].metadata.accession_version or ""
-                ),
-                "release_date": (
-                    assignment.release_date.isoformat()
-                    if assignment.release_date is not None
-                    else ""
-                ),
-                "nearest_train_genome_id": assignment.nearest_train_genome_id or "",
-                "max_train_similarity": (
-                    ""
-                    if assignment.max_train_similarity is None
-                    else format_similarity_value(assignment.max_train_similarity)
-                ),
-                "similarity_coverage": (
-                    ""
-                    if assignment.similarity_coverage is None
-                    else format_similarity_value(assignment.similarity_coverage)
-                ),
-                "similarity_method": assignment.similarity_method or "",
-                "strict_gate_train_genome_id": assignment.strict_gate_train_genome_id or "",
-                "strict_gate_similarity": (
-                    ""
-                    if assignment.strict_gate_similarity is None
-                    else format_similarity_value(assignment.strict_gate_similarity)
-                ),
-                "strict_gate_coverage": (
-                    ""
-                    if assignment.strict_gate_coverage is None
-                    else format_similarity_value(assignment.strict_gate_coverage)
-                ),
-                "strict_gate_method": assignment.strict_gate_method or "",
-            }
-            for assignment in plan.excluded
-        )
+    excluded_assignments = plan.excluded if plan is not None else ()
+    exclusions = [
+        _exclusion_row(assignment, genomes_by_id[assignment.genome_id], kind)
+        for assignment in excluded_assignments
+    ]
     write_tsv(split_dir / "excluded.tsv", exclusions, EXCLUSION_COLUMNS)
 
     if kind is SplitKind.SIMILARITY:
@@ -708,7 +640,7 @@ def _write_split(
         "schema": SPLIT_SCHEMA,
         "protocol": kind.value,
         "protocol_id": kind.value,
-        "parameters": _jsonable(parameters),
+        "parameters": json_ready(parameters),
         "validation": validation,
         "train": fragment_statistics(train),
         "test": fragment_statistics(test),
@@ -816,7 +748,7 @@ def generate_benchmark(config: BenchmarkConfig, *, dry_run: bool = False) -> Ben
                 "train": len(plan.train),
                 "test": len(plan.test),
                 "excluded": len(plan.excluded),
-                "parameters": _jsonable(plan.parameters),
+                "parameters": json_ready(plan.parameters),
             }
             for kind, plan in prepared.plans.items()
         }
@@ -935,12 +867,6 @@ def generate_benchmark(config: BenchmarkConfig, *, dry_run: bool = False) -> Ben
     return BenchmarkResult(output_dir=output_dir, summary=preflight_summary)
 
 
-def _file_sha256(path: Path) -> str:
-    from .output import sha256_file
-
-    return sha256_file(path)
-
-
 def _content_identifier(digest: str) -> str:
     return f"sha256:{digest}"
 
@@ -955,7 +881,7 @@ def _input_digest_map(
     if config.similarity_table is not None:
         paths.add(config.similarity_table.resolve())
     return {
-        path.resolve(): _file_sha256(path.resolve())
+        path.resolve(): sha256_file(path.resolve())
         for path in sorted(paths, key=lambda item: item.as_posix())
     }
 

@@ -93,6 +93,8 @@ class SimilarityBands:
 
     def __post_init__(self) -> None:
         values = (self.high, self.moderate, self.low)
+        for name in ("high", "moderate", "low"):
+            _require_number(getattr(self, name), f"similarity_bands.{name}")
         if any(not math.isfinite(value) for value in values):
             raise ConfigurationError("Similarity band thresholds must be finite")
         if not 1.0 >= self.high > self.moderate > self.low >= 0.0:
@@ -114,13 +116,31 @@ class SimilarityBands:
         return "high_similarity"
 
 
+def _require_integer(value: object, field_name: str) -> int:
+    """Reject lossy coercions and booleans in integer configuration fields."""
+
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ConfigurationError(f"{field_name} must be an integer")
+    return value
+
+
+def _require_number(value: object, field_name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigurationError(f"{field_name} must be a number")
+
+
 def _parse_date(value: object, field_name: str) -> date | None:
     if value is None or value == "":
         return None
-    if isinstance(value, date):
+    if type(value) is date:
         return value
     try:
-        return date.fromisoformat(str(value))
+        if not isinstance(value, str):
+            raise ValueError("not a calendar date")
+        parsed = date.fromisoformat(value)
+        if parsed.isoformat() != value:
+            raise ValueError("not YYYY-MM-DD")
+        return parsed
     except ValueError as exc:
         raise ConfigurationError(f"{field_name} must be an ISO date (YYYY-MM-DD)") from exc
 
@@ -136,7 +156,9 @@ def _as_paths(value: object, *, base_dir: Path, field_name: str) -> tuple[Path, 
         raise ConfigurationError(f"{field_name} must be a path or a list of paths")
     paths: list[Path] = []
     for item in values:
-        path = Path(str(item)).expanduser()
+        if not isinstance(item, (str, Path)) or (isinstance(item, str) and not item.strip()):
+            raise ConfigurationError(f"{field_name} must contain non-empty paths")
+        path = Path(item).expanduser()
         if not path.is_absolute():
             path = base_dir / path
         paths.append(path.resolve())
@@ -175,16 +197,11 @@ def _parse_fragment_lengths(value: object) -> tuple[int, ...]:
         values = tuple(value)
     else:
         raise ConfigurationError("fragment_lengths must be an integer or a list of integers")
-    try:
-        return tuple(int(item) for item in values)
-    except (TypeError, ValueError) as exc:
-        raise ConfigurationError(
-            "fragment_lengths must be an integer or a list of integers"
-        ) from exc
+    return tuple(_require_integer(item, "fragment_lengths") for item in values)
 
 
 def _parse_holdout_taxa(value: object) -> tuple[str, ...]:
-    """Parse one taxon name or an iterable of taxon names."""
+    """Parse, trim, and deduplicate requested taxon names."""
 
     if isinstance(value, str):
         values = (value,)
@@ -192,7 +209,9 @@ def _parse_holdout_taxa(value: object) -> tuple[str, ...]:
         values = tuple(value)
     else:
         raise ConfigurationError("holdout_taxa must be a name or a list of names")
-    return tuple(str(item) for item in values)
+    if any(not isinstance(item, str) or not item.strip() for item in values):
+        raise ConfigurationError("holdout_taxa must contain non-empty names")
+    return tuple(dict.fromkeys(item.strip() for item in values))
 
 
 def _parse_similarity_bands(value: object) -> SimilarityBands:
@@ -204,18 +223,12 @@ def _parse_similarity_bands(value: object) -> SimilarityBands:
         raise ConfigurationError(
             "similarity_bands must be a table containing numeric high, moderate, and low values"
         )
-    keys = set(value)
     allowed = {"high", "moderate", "low"}
-    if any(not isinstance(key, str) for key in keys) or not keys <= allowed:
+    if not set(value) <= allowed:
         raise ConfigurationError(
             "similarity_bands may contain only high, moderate, and low thresholds"
         )
-    try:
-        return SimilarityBands(**dict(value))
-    except TypeError as exc:
-        raise ConfigurationError(
-            "similarity_bands must contain numeric high, moderate, and low values"
-        ) from exc
+    return SimilarityBands(**dict(value))
 
 
 def parse_splits(value: object) -> tuple[SplitKind, ...]:
@@ -269,12 +282,49 @@ class BenchmarkConfig:
     overwrite: bool = False
 
     def __post_init__(self) -> None:
+        for name in (
+            "seed",
+            "fragments_per_genome",
+            "auto_holdout_count",
+            "similarity_k",
+            "sketch_size",
+        ):
+            _require_integer(getattr(self, name), name)
+        for name in (
+            "test_fraction",
+            "max_ambiguous_fraction",
+            "max_train_similarity",
+            "min_similarity_coverage",
+        ):
+            _require_number(getattr(self, name), name)
+        if not isinstance(self.overwrite, bool):
+            raise ConfigurationError("overwrite must be a boolean")
+        if not isinstance(self.taxonomy_rank, str):
+            raise ConfigurationError("taxonomy_rank must be one non-empty field name")
+        if not isinstance(self.similarity_bands, SimilarityBands):
+            raise ConfigurationError("similarity_bands must be a SimilarityBands object")
+        try:
+            object.__setattr__(self, "duplicate_policy", DuplicatePolicy(self.duplicate_policy))
+        except (TypeError, ValueError) as exc:
+            raise ConfigurationError("duplicate_policy must be 'error' or 'drop'") from exc
+        try:
+            object.__setattr__(
+                self, "missing_metadata", MissingMetadataPolicy(self.missing_metadata)
+            )
+        except (TypeError, ValueError) as exc:
+            raise ConfigurationError("missing_metadata must be 'error' or 'exclude'") from exc
+        object.__setattr__(self, "fragment_lengths", _parse_fragment_lengths(self.fragment_lengths))
+        object.__setattr__(self, "holdout_taxa", _parse_holdout_taxa(self.holdout_taxa))
+        object.__setattr__(
+            self, "temporal_cutoff", _parse_date(self.temporal_cutoff, "temporal_cutoff")
+        )
         if not self.virus_paths:
             raise ConfigurationError("At least one --virus FASTA file or directory is required")
         if not self.host_paths:
             raise ConfigurationError("At least one --host FASTA file or directory is required")
         if not self.splits:
             raise ConfigurationError("At least one evaluation split is required")
+        object.__setattr__(self, "splits", parse_splits(self.splits))
         if not 0.0 < self.test_fraction < 1.0:
             raise ConfigurationError("test_fraction must be greater than 0 and less than 1")
         if not self.fragment_lengths or any(length < 1 for length in self.fragment_lengths):
@@ -287,7 +337,7 @@ class BenchmarkConfig:
                 f"fragments_per_genome must be at least {minimum_fragments} so every "
                 "genome contributes train and test records at every requested length"
             )
-        if self.strand_mode not in {"both", "forward"}:
+        if self.strand_mode not in ("both", "forward"):
             raise ConfigurationError("strand_mode must be 'both' or 'forward'")
         if not 0.0 <= self.max_ambiguous_fraction <= 1.0:
             raise ConfigurationError("max_ambiguous_fraction must be between 0 and 1")
@@ -310,11 +360,6 @@ class BenchmarkConfig:
         normalized_rank = self.taxonomy_rank.strip().lower()
         object.__setattr__(self, "taxonomy_rank", normalized_rank)
         object.__setattr__(self, "fragment_lengths", tuple(sorted(self.fragment_lengths)))
-        object.__setattr__(
-            self,
-            "holdout_taxa",
-            tuple(dict.fromkeys(taxon.strip() for taxon in self.holdout_taxa if taxon.strip())),
-        )
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any], *, base_dir: Path | None = None) -> Self:
@@ -329,7 +374,9 @@ class BenchmarkConfig:
         unknown = sorted(set(raw) - known - {"schema_version"})
         if unknown:
             raise ConfigurationError(f"Unknown configuration field(s): {', '.join(unknown)}")
-        schema_version = int(raw.pop("schema_version", CONFIG_SCHEMA_VERSION))
+        schema_version = _require_integer(
+            raw.pop("schema_version", CONFIG_SCHEMA_VERSION), "schema_version"
+        )
         if schema_version != CONFIG_SCHEMA_VERSION:
             raise ConfigurationError(
                 f"Unsupported config schema_version {schema_version}; expected {CONFIG_SCHEMA_VERSION}"
@@ -349,26 +396,17 @@ class BenchmarkConfig:
         similarity_values = _as_paths(
             raw.pop("similarity_table", None), base_dir=path_base, field_name="similarity_table"
         )
-        bands_raw = raw.pop("similarity_bands", None)
-        bands = _parse_similarity_bands(bands_raw)
-        duplicate = DuplicatePolicy(str(raw.pop("duplicate_policy", DuplicatePolicy.ERROR.value)))
-        missing = MissingMetadataPolicy(
-            str(raw.pop("missing_metadata", MissingMetadataPolicy.ERROR.value))
-        )
-        fragment_lengths = _parse_fragment_lengths(raw.pop("fragment_lengths", (500,)))
-        holdout_taxa = _parse_holdout_taxa(raw.pop("holdout_taxa", ()))
+        if len(metadata_values) > 1:
+            raise ConfigurationError("metadata_path must be exactly one path")
+        if len(similarity_values) > 1:
+            raise ConfigurationError("similarity_table must be exactly one path")
         return cls(
             virus_paths=virus_paths,
             host_paths=host_paths,
             output_dir=output_dir,
             metadata_path=metadata_values[0] if metadata_values else None,
             splits=parse_splits(raw.pop("splits", None)),
-            temporal_cutoff=_parse_date(raw.pop("temporal_cutoff", None), "temporal_cutoff"),
-            fragment_lengths=fragment_lengths,
-            holdout_taxa=holdout_taxa,
-            duplicate_policy=duplicate,
-            missing_metadata=missing,
-            similarity_bands=bands,
+            similarity_bands=_parse_similarity_bands(raw.pop("similarity_bands", None)),
             similarity_table=similarity_values[0] if similarity_values else None,
             **raw,
         )

@@ -6,7 +6,40 @@ All notable user-visible changes are documented here. The format follows
 
 ## [Unreleased]
 
-No user-visible changes recorded.
+### Maintenance
+
+- Simplify configuration normalization, share JSON/directory utilities, use
+  standard-library stream contexts, remove obsolete private wrappers, and
+  shorten split/exclusion serialization without changing generated data.
+
+### Fixed
+
+- Require Twine 7 in development, Conda, and CI so distribution checks support
+  the metadata version emitted by current Hatchling builds.
+- Reject fractional/boolean integer settings, incorrectly typed numbers and
+  overwrite flags, non-calendar cutoff dates, invalid policies, empty taxon
+  names, and multiple paths for single-file inputs before generation. Invalid
+  settings now raise actionable configuration errors instead of being silently
+  coerced or producing a traceback.
+- Reject malformed quoting, duplicate similarity-table headers, and rows with
+  extra or missing fields. Metadata and similarity-table read failures include
+  the input path.
+- Report truncated or corrupt gzip FASTA and truth tables through the documented
+  input/integrity error paths, including corrupt empty similarity strata.
+- Preserve a bundle created by another publisher while generation is in
+  progress when `--force` was not requested.
+- Include origin-spanning k-mers in circular-contig similarity sketches, making
+  the sketches invariant to the declared origin and strand. Similarity evidence
+  and strict-test membership for circular inputs may consequently change;
+  regenerate affected benchmarks and retain the previous software receipt.
+
+### Performance
+
+- Reuse source digests during fragment generation and truth serialization,
+  avoiding whole-genome hashing for every emitted record while preserving
+  fragment identities and sampling decisions.
+- Use linear-time duplicate-ID checks and group source records once during
+  bundle reconstruction instead of rescanning all records for each genome.
 
 ## [1.0.0] — 2026-08-08
 

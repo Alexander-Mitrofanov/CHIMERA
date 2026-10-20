@@ -7,9 +7,30 @@ from collections import Counter, defaultdict
 import pytest
 
 import chimera.fragments as fragment_module
+import chimera.models as model_module
 from chimera.errors import InputError, IntegrityError
 from chimera.fragments import derive_seed, generate_fragments, split_fragments_random
 from chimera.models import Contig, Fragment, Genome, Label, reverse_complement
+
+
+def test_source_hash_work_does_not_grow_with_fragment_count(monkeypatch):
+    source = _genome("source", Label.VIRUS, "AACGTGCA" * 100)
+    original_hash = model_module.canonical_sequence_hash
+    calls = 0
+
+    def counted_hash(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original_hash(*args, **kwargs)
+
+    monkeypatch.setattr(model_module, "canonical_sequence_hash", counted_hash)
+    short = generate_fragments([source], fragment_lengths=[31], fragments_per_genome=2, seed=42)
+    short_calls = calls
+    calls = 0
+    long = generate_fragments([source], fragment_lengths=[31], fragments_per_genome=20, seed=42)
+
+    assert long[:2] == short
+    assert calls == short_calls
 
 
 def _genome(genome_id: str, label: Label, *sequences: str) -> Genome:

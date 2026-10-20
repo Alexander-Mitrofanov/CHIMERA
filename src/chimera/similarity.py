@@ -106,7 +106,11 @@ def sketch_genome(genome: Genome, *, k: int = 21, sketch_size: int = 2_000) -> G
     overflow = False
     for contig in genome.contigs:
         sequence = contig.sequence
-        for start in range(max(0, len(sequence) - k + 1)):
+        window_count = max(0, len(sequence) - k + 1)
+        if contig.topology == "circular" and len(sequence) >= k:
+            window_count = len(sequence)
+            sequence += sequence[: k - 1]
+        for start in range(window_count):
             kmer = sequence[start : start + k]
             # Ambiguity-bearing k-mers are uninformative for identity estimation.
             if any(base not in "ACGT" for base in kmer):
@@ -266,84 +270,95 @@ def read_similarity_table(
     seen_pairs: set[tuple[str, str]] = set()
     try:
         handle = path.open(newline="", encoding="utf-8")
-    except OSError as exc:
+        with handle:
+            reader = csv.DictReader(handle, delimiter="\t", strict=True)
+            header = reader.fieldnames or []
+            if len(header) != len(set(header)):
+                raise InputError(f"Similarity table {path} contains duplicate columns")
+            required = set(SIMILARITY_TABLE_COLUMNS)
+            missing_columns = required - set(reader.fieldnames or ())
+            if missing_columns:
+                raise InputError(
+                    f"Similarity table {path} is missing column(s): {', '.join(sorted(missing_columns))}"
+                )
+            for row in reader:
+                line_number = reader.line_num
+                if None in row:
+                    raise InputError(f"{path}:{line_number}: row has more fields than the header")
+                if any(value is None for value in row.values()):
+                    raise InputError(f"{path}:{line_number}: row has fewer fields than the header")
+                query_id = (row.get("query_genome_id") or "").strip()
+                reference_id = (row.get("reference_genome_id") or "").strip() or None
+                if query_id not in expected_queries:
+                    raise InputError(
+                        f"{path}:{line_number}: unknown/non-test query_genome_id {query_id!r}"
+                    )
+                if reference_id is None:
+                    raise InputError(
+                        f"{path}:{line_number}: reference_genome_id is required in all-pairs mode"
+                    )
+                if reference_id not in expected_references:
+                    raise InputError(
+                        f"{path}:{line_number}: reference {reference_id!r} is not a training genome"
+                    )
+                pair = (query_id, reference_id)
+                if pair in seen_pairs:
+                    raise InputError(
+                        f"{path}:{line_number}: duplicate query/reference pair {pair!r}"
+                    )
+                seen_pairs.add(pair)
+                raw_similarity = (row.get("similarity") or "").strip()
+                raw_coverage = (row.get("coverage") or "").strip()
+                if bool(raw_similarity) != bool(raw_coverage):
+                    raise InputError(
+                        f"{path}:{line_number}: similarity and coverage must both be blank for "
+                        "a nondetected pair, or both be numeric fractions on [0, 1]"
+                    )
+                similarity_value: float | None = None
+                coverage: float | None = None
+                if raw_similarity:
+                    try:
+                        similarity_value = float(raw_similarity)
+                    except ValueError as exc:
+                        raise InputError(
+                            f"{path}:{line_number}: similarity must be a number on [0, 1]"
+                        ) from exc
+                    if not math.isfinite(similarity_value) or not 0.0 <= similarity_value <= 1.0:
+                        raise InputError(
+                            f"{path}:{line_number}: similarity {similarity_value!r} is outside [0, 1]"
+                        )
+                    try:
+                        coverage = float(raw_coverage)
+                    except ValueError as exc:
+                        raise InputError(
+                            f"{path}:{line_number}: coverage must be a number on [0, 1]"
+                        ) from exc
+                    if not math.isfinite(coverage) or not 0.0 <= coverage <= 1.0:
+                        raise InputError(
+                            f"{path}:{line_number}: coverage {coverage!r} is outside [0, 1]"
+                        )
+                coverage_definition = (row.get("coverage_definition") or "").strip()
+                if coverage_definition != "aligned_fraction_shorter":
+                    raise InputError(
+                        f"{path}:{line_number}: coverage_definition must be 'aligned_fraction_shorter'"
+                    )
+                method = (row.get("method") or "").strip()
+                if not method or not any(character.isdigit() for character in method):
+                    raise InputError(
+                        f"{path}:{line_number}: method must include a nonempty tool/version identifier"
+                    )
+                by_query[query_id].append(
+                    SimilarityHit(
+                        query_genome_id=query_id,
+                        reference_genome_id=reference_id,
+                        similarity=similarity_value,
+                        coverage=coverage,
+                        method=method,
+                    )
+                )
+    except (OSError, UnicodeError, csv.Error) as exc:
         raise InputError(f"Cannot read similarity table {path}: {exc}") from exc
-    with handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-        required = set(SIMILARITY_TABLE_COLUMNS)
-        missing_columns = required - set(reader.fieldnames or ())
-        if missing_columns:
-            raise InputError(
-                f"Similarity table {path} is missing column(s): {', '.join(sorted(missing_columns))}"
-            )
-        for line_number, row in enumerate(reader, start=2):
-            query_id = (row.get("query_genome_id") or "").strip()
-            reference_id = (row.get("reference_genome_id") or "").strip() or None
-            if query_id not in expected_queries:
-                raise InputError(
-                    f"{path}:{line_number}: unknown/non-test query_genome_id {query_id!r}"
-                )
-            if reference_id is None:
-                raise InputError(
-                    f"{path}:{line_number}: reference_genome_id is required in all-pairs mode"
-                )
-            if reference_id not in expected_references:
-                raise InputError(
-                    f"{path}:{line_number}: reference {reference_id!r} is not a training genome"
-                )
-            pair = (query_id, reference_id)
-            if pair in seen_pairs:
-                raise InputError(f"{path}:{line_number}: duplicate query/reference pair {pair!r}")
-            seen_pairs.add(pair)
-            raw_similarity = (row.get("similarity") or "").strip()
-            raw_coverage = (row.get("coverage") or "").strip()
-            if bool(raw_similarity) != bool(raw_coverage):
-                raise InputError(
-                    f"{path}:{line_number}: similarity and coverage must both be blank for "
-                    "a nondetected pair, or both be numeric fractions on [0, 1]"
-                )
-            similarity_value: float | None = None
-            coverage: float | None = None
-            if raw_similarity:
-                try:
-                    similarity_value = float(raw_similarity)
-                except ValueError as exc:
-                    raise InputError(
-                        f"{path}:{line_number}: similarity must be a number on [0, 1]"
-                    ) from exc
-                if not math.isfinite(similarity_value) or not 0.0 <= similarity_value <= 1.0:
-                    raise InputError(
-                        f"{path}:{line_number}: similarity {similarity_value!r} is outside [0, 1]"
-                    )
-                try:
-                    coverage = float(raw_coverage)
-                except ValueError as exc:
-                    raise InputError(
-                        f"{path}:{line_number}: coverage must be a number on [0, 1]"
-                    ) from exc
-                if not math.isfinite(coverage) or not 0.0 <= coverage <= 1.0:
-                    raise InputError(
-                        f"{path}:{line_number}: coverage {coverage!r} is outside [0, 1]"
-                    )
-            coverage_definition = (row.get("coverage_definition") or "").strip()
-            if coverage_definition != "aligned_fraction_shorter":
-                raise InputError(
-                    f"{path}:{line_number}: coverage_definition must be 'aligned_fraction_shorter'"
-                )
-            method = (row.get("method") or "").strip()
-            if not method or not any(character.isdigit() for character in method):
-                raise InputError(
-                    f"{path}:{line_number}: method must include a nonempty tool/version identifier"
-                )
-            by_query[query_id].append(
-                SimilarityHit(
-                    query_genome_id=query_id,
-                    reference_genome_id=reference_id,
-                    similarity=similarity_value,
-                    coverage=coverage,
-                    method=method,
-                )
-            )
+
     incomplete_queries = sorted(
         query for query, hits in by_query.items() if len(hits) != len(expected_references)
     )

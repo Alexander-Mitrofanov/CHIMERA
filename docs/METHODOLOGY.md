@@ -162,7 +162,12 @@ the denominator for similarity strata and exclusion accounting.
 ### Built-in MinHash screen
 
 For each contig, CHIMERA enumerates unambiguous canonical k-mers; no k-mer spans
-a contig boundary. Each canonical k-mer is hashed with stable BLAKE2b, and the
+a boundary between distinct contigs. A linear contig of length `n >= k`
+contributes `n - k + 1` windows. A declared circular contig of length `n >= k`
+contributes `n` windows, including those spanning its origin, so moving the
+origin or reversing the strand does not change its sketch. Contigs shorter
+than `k` contribute no windows; ambiguity-bearing windows are discarded.
+Each canonical k-mer is hashed with stable BLAKE2b, and the
 smallest `sketch_size` distinct hashes are retained. When both sketches retain
 all unique k-mers, Jaccard is exact; otherwise consistent bottom-k sampling
 estimates it.

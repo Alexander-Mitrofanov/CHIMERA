@@ -4,10 +4,12 @@ import gzip
 import os
 import stat
 from datetime import date
+from enum import Enum
 from pathlib import Path
 
 import pytest
 
+from chimera.config import SimilarityBands, SplitKind
 from chimera.errors import IntegrityError
 from chimera.models import Contig, Fragment, Genome, GenomeMetadata, Label
 from chimera.output import (
@@ -15,12 +17,13 @@ from chimera.output import (
     TRUTH_COLUMNS,
     _atomic_binary_writer,
     _checksum_location,
-    _ensure_public_directory,
     _resolved_bundle_root,
     _source_identifier,
     _validate_checksum_exclusions,
     _validate_relative_checksum_path,
+    ensure_output_directory,
     fragment_statistics,
+    json_ready,
     reference_rows,
     sequence_rows,
     summarize_split_truth,
@@ -51,6 +54,51 @@ def fragments() -> tuple[Fragment, ...]:
         Fragment("f_opaque1", "ACGT", Label.VIRUS, "G1", "NC_1.1", 0, 4, "+", 0),
         Fragment("f_opaque2", "CGTA", Label.VIRUS, "G1", "NC_1.1", 1, 5, "-", 1),
     )
+
+
+def test_json_ready_supports_provenance_types_and_rejects_unknown_values(tmp_path):
+    class PlainEnum(Enum):
+        VALUE = "plain-enum"
+
+    value = {
+        "date": date(2020, 1, 2),
+        "path": tmp_path,
+        "enum": SplitKind.GENOME,
+        "bands": SimilarityBands(),
+        "items": frozenset({1, 2}),
+        "plain_enum": PlainEnum.VALUE,
+    }
+    assert json_ready(value) == {
+        "bands": {"high": 0.9, "low": 0.3, "moderate": 0.7},
+        "date": "2020-01-02",
+        "enum": "genome",
+        "items": [1, 2],
+        "path": str(tmp_path),
+        "plain_enum": "plain-enum",
+    }
+    with pytest.raises(TypeError, match="Cannot serialize provenance"):
+        json_ready(object())
+
+
+def test_truth_serialization_hashes_only_used_genomes_once(monkeypatch):
+    source = source_genome()
+    unused = Genome("unused", Label.HOST, (Contig("unused.1", "TTTTCCCC"),))
+    sources = {source.genome_id: source, unused.genome_id: unused}
+    expected = f"sha256:{source.digest}"
+    original_digest = Genome.digest.fget
+    calls = []
+
+    def counted_digest(genome):
+        calls.append(genome.genome_id)
+        return original_digest(genome)
+
+    monkeypatch.setattr(Genome, "digest", property(counted_digest))
+
+    assert truth_rows([], partition="train", genomes=sources) == []
+    assert calls == []
+    rows = truth_rows(fragments(), partition="train", genomes=sources)
+    assert calls == [source.genome_id]
+    assert all(row["source_content_group_id"] == expected for row in rows)
 
 
 def test_json_and_text_writers_normalize_output(tmp_path):
@@ -301,7 +349,7 @@ def test_directory_creation_rejects_a_file_parent(tmp_path):
     parent = tmp_path / "not-a-directory"
     parent.write_text("content", encoding="utf-8")
     with pytest.raises(NotADirectoryError, match="Output parent"):
-        _ensure_public_directory(parent / "child")
+        ensure_output_directory(parent / "child")
 
 
 @pytest.mark.parametrize("digest", [None, "short", "G" * 64])

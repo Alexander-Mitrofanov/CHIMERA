@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -339,7 +339,7 @@ def _prepare_groups(genomes: Sequence[Genome]) -> tuple[_GenomeGroup, ...]:
         raise TypeError("genomes must contain only Genome objects")
     genome_ids = [genome.genome_id for genome in source]
     duplicated_ids = sorted(
-        genome_id for genome_id in set(genome_ids) if genome_ids.count(genome_id) > 1
+        genome_id for genome_id, count in Counter(genome_ids).items() if count > 1
     )
     if duplicated_ids:
         raise InputError("Duplicate genome_id values: " + ", ".join(duplicated_ids))
@@ -436,23 +436,6 @@ def _stratified_partitions(
     return result
 
 
-def _release_date(genome: Genome) -> date | None:
-    """Read canonical release_date, with a transition fallback for old models."""
-
-    value = getattr(genome.metadata, "release_date", None)
-    if value is None and not hasattr(genome.metadata, "release_date"):
-        value = getattr(genome.metadata, "deposited_at", None)
-    return value
-
-
-def _taxonomy_value(genome: Genome, rank: str) -> str | None:
-    return genome.metadata.taxon(rank)
-
-
-def _parameters(values: Mapping[str, object]) -> FrozenParameters:
-    return FrozenParameters.from_mapping(values)
-
-
 def genome_holdout(
     genomes: Sequence[Genome],
     *,
@@ -476,7 +459,7 @@ def genome_holdout(
             partition=partitions[genome.genome_id],
             reason="label_stratified_genome_holdout",
             group_id=lookup[genome.genome_id].group_id,
-            release_date=_release_date(genome),
+            release_date=genome.metadata.release_date,
         )
         for genome in sorted(genomes, key=lambda item: item.genome_id)
     )
@@ -484,7 +467,7 @@ def genome_holdout(
         kind=SplitKind.GENOME,
         assignments=assignments,
         seed=seed,
-        parameters=_parameters(
+        parameters=FrozenParameters.from_mapping(
             {
                 "grouping": "canonical_topology_aware_genome_sha256_v2",
                 "test_fraction": test_fraction,
@@ -580,7 +563,7 @@ def temporal_holdout(
     dates = {
         genome.genome_id: value
         for genome in genomes
-        if (value := _release_date(genome)) is not None
+        if (value := genome.metadata.release_date) is not None
     }
     missing_ids = sorted(genome.genome_id for genome in genomes if genome.genome_id not in dates)
     if missing_ids and policy is MissingMetadataPolicy.ERROR:
@@ -644,7 +627,7 @@ def temporal_holdout(
         kind=SplitKind.TEMPORAL,
         assignments=tuple(assignments),
         seed=seed,
-        parameters=_parameters(
+        parameters=FrozenParameters.from_mapping(
             {
                 "cutoff_selection": "explicit" if requested_cutoff is not None else "automatic",
                 "grouping": "canonical_topology_aware_genome_sha256_v2",
@@ -681,7 +664,7 @@ def _collect_viral_taxa(
     taxa = {
         genome.genome_id: value
         for genome in genomes
-        if genome.label is Label.VIRUS and (value := _taxonomy_value(genome, rank)) is not None
+        if genome.label is Label.VIRUS and (value := genome.metadata.taxon(rank)) is not None
     }
     missing = sorted(
         genome.genome_id
@@ -792,7 +775,7 @@ def _make_taxonomic_assignments(
                 partition=partition,
                 reason=reason,
                 group_id=lookup[genome.genome_id].group_id,
-                release_date=_release_date(genome),
+                release_date=genome.metadata.release_date,
                 taxon=taxon,
             )
         )
@@ -852,7 +835,7 @@ def taxonomic_holdout(
         kind=SplitKind.TAXONOMY,
         assignments=assignments,
         seed=seed,
-        parameters=_parameters(
+        parameters=FrozenParameters.from_mapping(
             {
                 "grouping": "canonical_topology_aware_genome_sha256_v2",
                 "holdout_selection": selection,
@@ -927,7 +910,7 @@ def _similarity_candidate_assignment(
         candidate_partition=SplitPartition.TEST,
         reason=reason,
         group_id=group_id,
-        release_date=_release_date(genome),
+        release_date=genome.metadata.release_date,
         similarity_bin=similarity_bands.classify(hit.similarity),
         nearest_train_genome_id=hit.reference_genome_id,
         max_train_similarity=hit.similarity,
@@ -1020,7 +1003,7 @@ def similarity_filtered_holdout(
                     candidate_partition=SplitPartition.TRAIN,
                     reason="label_stratified_training_proposal",
                     group_id=group.group_id,
-                    release_date=_release_date(genome),
+                    release_date=genome.metadata.release_date,
                 )
             )
             continue
@@ -1039,7 +1022,7 @@ def similarity_filtered_holdout(
         kind=SplitKind.SIMILARITY,
         assignments=tuple(assignments),
         seed=seed,
-        parameters=_parameters(
+        parameters=FrozenParameters.from_mapping(
             {
                 "grouping": "canonical_topology_aware_genome_sha256_v2",
                 "max_train_similarity": max_train_similarity,
@@ -1065,7 +1048,7 @@ def similarity_filtered_holdout(
 
 def _validate_partition(plan: SplitPlan) -> None:
     ids = [assignment.genome_id for assignment in plan.assignments]
-    duplicates = sorted(genome_id for genome_id in set(ids) if ids.count(genome_id) > 1)
+    duplicates = sorted(genome_id for genome_id, count in Counter(ids).items() if count > 1)
     if duplicates:
         raise IntegrityError("A genome has multiple split assignments: " + ", ".join(duplicates))
     if plan.train_ids & plan.test_ids or plan.train_ids & plan.excluded_ids:
