@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, NoReturn, TextIO, cast
 
 from . import __version__
-from .config import BenchmarkConfig, SimilarityBands, SplitKind
+from .config import BenchmarkConfig, SplitKind
 from .errors import ChimeraError, IntegrityError
 from .fasta import FastaFormatError, read_fasta
 from .fragments import derive_seed, generate_fragments, split_fragments_random
@@ -38,7 +38,7 @@ from .models import (
     deterministic_genome_hash,
     reverse_complement,
 )
-from .output import REFERENCE_COLUMNS, SEQUENCE_COLUMNS, TRUTH_COLUMNS, verify_checksums
+from .output import REFERENCE_COLUMNS, SEQUENCE_COLUMNS, TRUTH_COLUMNS, json_ready, verify_checksums
 from .provenance import software_content_sha256
 from .schema_resources import (
     JSON_SCHEMA_NAMES,
@@ -1011,20 +1011,6 @@ def _validate_truth_assignments(
         )
 
 
-def _jsonable(value: object) -> object:
-    if isinstance(value, date):
-        return value.isoformat()
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, SimilarityBands):
-        return {"high": value.high, "moderate": value.moderate, "low": value.low}
-    if isinstance(value, Mapping):
-        return {str(key): _jsonable(item) for key, item in sorted(value.items())}
-    if isinstance(value, (tuple, list)):
-        return [_jsonable(item) for item in value]
-    return value
-
-
 def _compare_assignment(
     path: Path,
     line_number: int,
@@ -1160,7 +1146,7 @@ def _validate_recomputed_assignments(
     except ChimeraError as error:
         raise IntegrityError(f"{split_dir}: cannot reproduce split plan: {error}") from error
 
-    expected_parameters = cast(dict[str, object], _jsonable(plan.parameters))
+    expected_parameters = cast(dict[str, object], json_ready(plan.parameters))
     if kind is SplitKind.SIMILARITY and similarity_table is not None:
         original = config.similarity_table.name if config.similarity_table is not None else None
         expected_parameters["similarity_source"] = original

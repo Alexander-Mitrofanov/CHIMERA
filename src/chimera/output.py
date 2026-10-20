@@ -11,10 +11,14 @@ import os
 import tempfile
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
+from dataclasses import asdict
+from datetime import date
+from enum import Enum
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
+from .config import SimilarityBands
 from .errors import IntegrityError
 from .models import Fragment, Genome
 from .similarity import format_similarity_value
@@ -24,7 +28,7 @@ _PUBLISHED_DIRECTORY_MODE = 0o755
 _PUBLISHED_FILE_MODE = 0o644
 
 
-def _ensure_public_directory(path: Path) -> None:
+def ensure_output_directory(path: Path) -> None:
     """Create missing path components privately, then publish each as ``0755``."""
 
     missing: list[Path] = []
@@ -61,7 +65,7 @@ def sha256_file(path: Path, *, chunk_size: int = 1024 * 1024) -> str:
 
 @contextmanager
 def _atomic_binary_writer(path: Path) -> Iterator[io.BufferedWriter]:
-    _ensure_public_directory(path.parent)
+    ensure_output_directory(path.parent)
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
     )
@@ -78,6 +82,26 @@ def _atomic_binary_writer(path: Path) -> Iterator[io.BufferedWriter]:
     finally:
         if not committed and temporary.exists():
             temporary.unlink()
+
+
+def json_ready(value: object) -> object:
+    """Convert provenance values to JSON-compatible containers and scalars."""
+
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, SimilarityBands):
+        return asdict(value)
+    if isinstance(value, Mapping):
+        return {str(key): json_ready(item) for key, item in sorted(value.items())}
+    if isinstance(value, (tuple, list, set, frozenset)):
+        return [json_ready(item) for item in value]
+    raise TypeError(f"Cannot serialize provenance value of type {type(value).__name__}")
 
 
 def write_json(path: Path, value: Any) -> Path:
@@ -121,11 +145,12 @@ def write_tsv(
 
     use_gzip = path.name.endswith(".gz") if compressed is None else compressed
     with _atomic_binary_writer(path) as raw:
-        if use_gzip:
-            binary: Any = gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0)
-        else:
-            binary = raw
-        with binary if use_gzip else _null_context(binary):
+        stream = (
+            gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0)
+            if use_gzip
+            else nullcontext(raw)
+        )
+        with stream as binary:
             text = io.TextIOWrapper(binary, encoding="utf-8", newline="", write_through=True)
             writer = csv.DictWriter(
                 text,
@@ -138,14 +163,8 @@ def write_tsv(
             for row in rows:
                 writer.writerow({column: row.get(column, "") for column in columns})
             text.flush()
-            if use_gzip:
-                text.detach()
+            text.detach()
     return path
-
-
-@contextmanager
-def _null_context(value: Any) -> Iterator[Any]:
-    yield value
 
 
 def _source_identifier(

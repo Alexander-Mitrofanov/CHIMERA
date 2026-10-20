@@ -201,7 +201,7 @@ def _parse_fragment_lengths(value: object) -> tuple[int, ...]:
 
 
 def _parse_holdout_taxa(value: object) -> tuple[str, ...]:
-    """Parse one taxon name or an iterable of taxon names."""
+    """Parse, trim, and deduplicate requested taxon names."""
 
     if isinstance(value, str):
         values = (value,)
@@ -211,7 +211,7 @@ def _parse_holdout_taxa(value: object) -> tuple[str, ...]:
         raise ConfigurationError("holdout_taxa must be a name or a list of names")
     if any(not isinstance(item, str) or not item.strip() for item in values):
         raise ConfigurationError("holdout_taxa must contain non-empty names")
-    return tuple(values)
+    return tuple(dict.fromkeys(item.strip() for item in values))
 
 
 def _parse_similarity_bands(value: object) -> SimilarityBands:
@@ -223,18 +223,12 @@ def _parse_similarity_bands(value: object) -> SimilarityBands:
         raise ConfigurationError(
             "similarity_bands must be a table containing numeric high, moderate, and low values"
         )
-    keys = set(value)
     allowed = {"high", "moderate", "low"}
-    if any(not isinstance(key, str) for key in keys) or not keys <= allowed:
+    if not set(value) <= allowed:
         raise ConfigurationError(
             "similarity_bands may contain only high, moderate, and low thresholds"
         )
-    try:
-        return SimilarityBands(**dict(value))
-    except TypeError as exc:
-        raise ConfigurationError(
-            "similarity_bands must contain numeric high, moderate, and low values"
-        ) from exc
+    return SimilarityBands(**dict(value))
 
 
 def parse_splits(value: object) -> tuple[SplitKind, ...]:
@@ -366,11 +360,6 @@ class BenchmarkConfig:
         normalized_rank = self.taxonomy_rank.strip().lower()
         object.__setattr__(self, "taxonomy_rank", normalized_rank)
         object.__setattr__(self, "fragment_lengths", tuple(sorted(self.fragment_lengths)))
-        object.__setattr__(
-            self,
-            "holdout_taxa",
-            tuple(dict.fromkeys(taxon.strip() for taxon in self.holdout_taxa if taxon.strip())),
-        )
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any], *, base_dir: Path | None = None) -> Self:
@@ -411,22 +400,13 @@ class BenchmarkConfig:
             raise ConfigurationError("metadata_path must be exactly one path")
         if len(similarity_values) > 1:
             raise ConfigurationError("similarity_table must be exactly one path")
-        bands_raw = raw.pop("similarity_bands", None)
-        bands = _parse_similarity_bands(bands_raw)
-        fragment_lengths = _parse_fragment_lengths(raw.pop("fragment_lengths", (500,)))
-        holdout_taxa = _parse_holdout_taxa(raw.pop("holdout_taxa", ()))
         return cls(
             virus_paths=virus_paths,
             host_paths=host_paths,
             output_dir=output_dir,
             metadata_path=metadata_values[0] if metadata_values else None,
             splits=parse_splits(raw.pop("splits", None)),
-            temporal_cutoff=_parse_date(raw.pop("temporal_cutoff", None), "temporal_cutoff"),
-            fragment_lengths=fragment_lengths,
-            holdout_taxa=holdout_taxa,
-            duplicate_policy=raw.pop("duplicate_policy", DuplicatePolicy.ERROR.value),
-            missing_metadata=raw.pop("missing_metadata", MissingMetadataPolicy.ERROR.value),
-            similarity_bands=bands,
+            similarity_bands=_parse_similarity_bands(raw.pop("similarity_bands", None)),
             similarity_table=similarity_values[0] if similarity_values else None,
             **raw,
         )

@@ -6,6 +6,12 @@ All notable user-visible changes are documented here. The format follows
 
 ## [Unreleased]
 
+### Maintenance
+
+- Simplify configuration normalization, share JSON/directory utilities, use
+  standard-library stream contexts, remove obsolete private wrappers, and
+  shorten split/exclusion serialization without changing generated data.
+
 ### Fixed
 
 - Require Twine 7 in development, Conda, and CI so distribution checks support

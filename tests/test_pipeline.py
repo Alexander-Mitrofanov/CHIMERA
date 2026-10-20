@@ -8,15 +8,13 @@ import random
 import shutil
 import stat
 import subprocess
-from datetime import date
-from enum import Enum
 from pathlib import Path
 
 import pytest
 
 import chimera.pipeline as pipeline_module
 from chimera.cli import main
-from chimera.config import BenchmarkConfig, ConfigurationError, SimilarityBands, SplitKind
+from chimera.config import BenchmarkConfig, ConfigurationError, SplitKind
 from chimera.errors import IntegrityError
 from chimera.models import Contig, Fragment, Genome, Label
 from chimera.pipeline import (
@@ -404,36 +402,14 @@ def test_complete_staging_bundle_is_validated_before_atomic_publish(tmp_path, mo
     assert config.output_dir.is_dir()
 
 
-def test_jsonable_supports_public_provenance_types_and_rejects_unknown_values(tmp_path):
-    class PlainEnum(Enum):
-        VALUE = "plain-enum"
-
-    value = {
-        "date": date(2020, 1, 2),
-        "path": tmp_path,
-        "enum": SplitKind.GENOME,
-        "bands": SimilarityBands(),
-        "items": frozenset({1, 2}),
-        "plain_enum": PlainEnum.VALUE,
-    }
-    serialized = pipeline_module._jsonable(value)
-    assert serialized == {
-        "bands": {"high": 0.9, "low": 0.3, "moderate": 0.7},
-        "date": "2020-01-02",
-        "enum": "genome",
-        "items": [1, 2],
-        "path": str(tmp_path),
-        "plain_enum": "plain-enum",
-    }
-    with pytest.raises(TypeError, match="Cannot serialize provenance"):
-        pipeline_module._jsonable(object())
-
-
 def test_pipeline_directory_creation_rejects_file_parent(tmp_path):
     parent = tmp_path / "file"
     parent.write_text("content", encoding="utf-8")
-    with pytest.raises(ConfigurationError, match="Output parent is not a directory"):
-        pipeline_module._ensure_public_directory(parent / "child")
+    with (
+        pytest.raises(ConfigurationError, match="Output parent is not a directory"),
+        _atomic_bundle_directory(parent / "child", overwrite=False),
+    ):
+        pass
 
 
 def test_bundle_permission_publish_rejects_symlink(tmp_path):

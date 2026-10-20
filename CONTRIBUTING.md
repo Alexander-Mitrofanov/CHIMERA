@@ -79,6 +79,10 @@ using `--force` against valuable data.
 - Support Python 3.11+ and keep runtime dependencies minimal, justified, and
   narrowly bounded.
 - Use strict type annotations and concise public docstrings.
+- Favor direct functions, explicit data flow, and standard-library tools. Extract
+  helpers when they remove real duplication or name a meaningful operation.
+- Normalize configuration at construction and access validated model fields
+  directly. Keep scientific integrity checks explicit and easy to audit.
 - Prefer immutable models, explicit errors, bounded work, stable semantic IDs,
   and atomic writes.
 - Derive random decisions from domain-separated semantic seeds. Do not depend
